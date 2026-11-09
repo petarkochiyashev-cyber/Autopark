@@ -1,0 +1,54 @@
+CREATE TABLE IF NOT EXISTS users (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  name VARCHAR(190) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('admin','editor','viewer') NOT NULL DEFAULT 'editor',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS categories (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(190) NOT NULL,
+  grp ENUM('machines','consumables') NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS suppliers (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  company VARCHAR(255) NOT NULL DEFAULT '',
+  person VARCHAR(255) NOT NULL DEFAULT '',
+  position VARCHAR(255) NOT NULL DEFAULT '',
+  phones TEXT NULL,
+  emails TEXT NULL,
+  website VARCHAR(255) NOT NULL DEFAULT '',
+  address VARCHAR(255) NOT NULL DEFAULT '',
+  city VARCHAR(120) NOT NULL DEFAULT '',
+  eik VARCHAR(40) NOT NULL DEFAULT '',
+  products TEXT NULL,
+  notes TEXT NULL,
+  rating TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  fav TINYINT(1) NOT NULL DEFAULT 0,
+  front VARCHAR(80) NULL,
+  back VARCHAR(80) NULL,
+  created_by INT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_city (city),
+  KEY idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS supplier_categories (
+  supplier_id INT UNSIGNED NOT NULL,
+  category_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (supplier_id, category_id),
+  CONSTRAINT fk_sc_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
+  CONSTRAINT fk_sc_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ip VARCHAR(45) NOT NULL,
+  attempted_at DATETIME NOT NULL,
+  KEY idx_ip_time (ip, attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
