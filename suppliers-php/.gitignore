@@ -1,4 +1,5 @@
 config.php
 uploads/*
 !uploads/.htaccess
-vendor/
+vendor/*
+!vendor/.htaccess
