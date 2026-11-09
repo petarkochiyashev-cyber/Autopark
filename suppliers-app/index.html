@@ -239,7 +239,7 @@ label.f textarea{min-height:70px;resize:vertical}
   <div class="hero-row">
     <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
       <h1>Всеки доставчик. <em>Една снимка</em> разстояние.</h1>
-      <label class="search" for="q"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Фирма, човек, телефон, град, продукт…" autocomplete="off"><kbd>/</kbd></label>
+      <label class="search" for="q"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Фирма, човек, ЕИК, телефон, град, продукт…" autocomplete="off"><kbd>/</kbd></label>
     </div>
     <div class="stats" id="stats">
       <button class="stat" type="button" data-cat="__all"><b id="sTotal">–</b><span>Доставчици</span></button>
@@ -298,13 +298,24 @@ async function boot(){
 
 function hay(s){const cats=(s.categories||[]).map(id=>catById(id)?.name||"").join(" ");
   return [s.company,s.person,s.position,s.phones,s.emails,s.website,s.address,s.city,s.eik,s.notes,s.products,cats].join(" ").toLowerCase()}
+/* Search terms: digit runs (ЕИК, ДДС №, телефон) are joined and compared digits-only, so "BG 123 456 789", "123456789" and "456 78" all find the same ЕИК. */
+const digits=v=>String(v||"").replace(/\D/g,"");
+function terms(q){const nums=[],words=[];
+  q=q.toLowerCase().replace(/(?:bg\s*)?\+?\d[\d\s.\/-]*\d|\d/gi,m=>{nums.push(digits(m));return " "});
+  q.split(/\s+/).filter(Boolean).forEach(w=>words.push(w));return {nums,words}}
+function eikHit(s,d){return d.length>=3&&digits(s.eik).includes(d)}
+function numHit(s,d){if(eikHit(s,d))return true;
+  const phones=String(s.phones||"").split(/[,;\n]/).map(digits);
+  const alt=d.startsWith("0")?"359"+d.slice(1):d.startsWith("359")?"0"+d.slice(3):d;
+  if(d.length>=3&&phones.some(p=>p.includes(d)||p.includes(alt)))return true;
+  return hay(s).includes(d)}
 function visible(){
-  const q=$("#q").value.trim().toLowerCase();
+  const q=$("#q").value.trim();const t=terms(q);
   let list=suppliers.filter(s=>{
     if(filter==="__fav"&&!s.fav)return false;
     if(filter==="__none"&&(s.categories||[]).some(id=>catById(id)))return false;
     if(!filter.startsWith("__")&&!(s.categories||[]).includes(filter))return false;
-    return !q||q.split(/\s+/).every(w=>hay(s).includes(w));
+    return !q||(t.words.every(w=>hay(s).includes(w))&&t.nums.every(d=>numHit(s,d)));
   });
   const k=$("#sort").value;
   list.sort((a,b)=>k==="new"?(b.createdAt||0)-(a.createdAt||0):k==="rating"?(b.rating||0)-(a.rating||0)||String(a.company).localeCompare(b.company,"bg"):String(a.company||a.person).localeCompare(b.company||b.person,"bg"));
@@ -332,6 +343,7 @@ function render(){
   const q=$("#q").value.trim();
   const words=q?q.split(/\s+/).filter(Boolean).map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")):[];
   const re=words.length?new RegExp("("+words.join("|")+")","giu"):null;
+  const qn=terms(q).nums;const eikShown=s=>s.eik&&qn.length&&qn.some(d=>eikHit(s,d));
   const H=t=>{const e=esc(t);return re?e.replace(re,"<mark>$1</mark>"):e};
   const split=v=>String(v||"").split(/[,;\n]/).map(x=>x.trim()).filter(Boolean);
   const key=[filter,q,$("#sort").value,view,list.length].join("|");const animate=key!==lastKey;lastKey=key;
@@ -344,7 +356,7 @@ function render(){
       <div class="body"><div class="co">${H(s.company||"(без име на фирма)")}</div>
       ${s.person?`<div class="who">${H(s.person)}${s.position?" · "+esc(s.position):""}</div>`:""}
       <div class="tags">${tagsHtml(s.categories)}</div>
-      <div class="meta"><span class="ph-line">${s.phones?H(split(s.phones)[0]):(s.city?H(s.city):"")}</span>${s.rating?`<span class="rate" aria-label="${s.rating} от 5">${"★".repeat(s.rating)}</span>`:""}</div></div>
+      <div class="meta"><span class="ph-line">${eikShown(s)?`ЕИК <mark>${esc(s.eik)}</mark>`:s.phones?H(split(s.phones)[0]):(s.city?H(s.city):"")}</span>${s.rating?`<span class="rate" aria-label="${s.rating} от 5">${"★".repeat(s.rating)}</span>`:""}</div></div>
     </div>
     ${(s.phones||s.emails)?`<div class="face back" aria-hidden="true"><h4>${esc(s.company||s.person)}</h4><button type="button" class="flipback" data-act="flip" aria-label="Обърни обратно">↺</button>
       <ul>${split(s.phones).map(x=>`<li><span><small>Телефон</small>${esc(x)}</span><button type="button" class="copy" data-copy="${esc(x)}">копирай</button></li>`).join("")}${split(s.emails).map(x=>`<li><span><small>Имейл</small>${esc(x)}</span><button type="button" class="copy" data-copy="${esc(x)}">копирай</button></li>`).join("")}</ul>
