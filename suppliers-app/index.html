@@ -112,6 +112,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
 .card .co{font-weight:600;font-size:16.5px;line-height:1.25;overflow-wrap:anywhere;letter-spacing:-.005em}
 .card .who{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.card .added{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
 .card .meta{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:auto;padding-top:6px}
 .card .ph-line{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);overflow-wrap:anywhere;min-width:0}
 .card .rate{color:var(--star);font-size:12px;letter-spacing:1px;flex:none}
@@ -262,7 +263,7 @@ label.f textarea{min-height:70px;resize:vertical}
   <main class="main">
     <div id="notice" class="notice" hidden></div>
     <div class="bar"><span class="count" id="count">Зареждане…</span>
-      <div class="bar-r"><div class="view" role="group" aria-label="Изглед"><button type="button" data-view="grid" aria-pressed="true">▦ Карти</button><button type="button" data-view="list" aria-pressed="false">☰ Списък</button></div><label for="city" class="count">Град</label><select id="city"><option value="">Всички градове</option></select><label for="sort" class="count">Подреди</label><select id="sort"><option value="name">по име</option><option value="new">най-нови</option><option value="rating">по оценка</option></select></div></div>
+      <div class="bar-r"><div class="view" role="group" aria-label="Изглед"><button type="button" data-view="grid" aria-pressed="true">▦ Карти</button><button type="button" data-view="list" aria-pressed="false">☰ Списък</button></div><label for="city" class="count">Град</label><select id="city"><option value="">Всички градове</option></select><label for="sort" class="count">Подреди</label><select id="sort"><option value="name">по име (А–Я)</option><option value="new">най-нови първо</option><option value="old">най-стари първо</option><option value="rating">по оценка</option></select></div></div>
     <div class="grid" id="grid"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
     <div class="empty" id="empty" hidden><strong>Първата визитка</strong><span>Натиснете „+ Нова визитка“, снимайте визитката и данните ще се попълнят сами.</span><button class="btn primary" type="button" onclick="openEditor()">+ Нова визитка</button></div>
   </main>
@@ -280,6 +281,14 @@ let suppliers=[],categories=[],filter="__all",loaded=false,lastKey="",view="grid
 const cityKey=v=>String(v||"").trim().replace(/^(гр\.?|град|с\.|село)\s*/i,"").replace(/\s+/g," ").toLowerCase();
 try{view=localStorage.getItem("sup-view")==="list"?"list":"grid"}catch{}
 const shown={};
+const MON=["яну","фев","мар","апр","май","юни","юли","авг","сеп","окт","ное","дек"];
+function fmtDate(ms,full){const d=new Date(ms),now=new Date(),day=86400000;
+  const start=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime();
+  const diff=Math.round((start(now)-start(d))/day);
+  const hm=d.toLocaleTimeString("bg-BG",{hour:"2-digit",minute:"2-digit"});
+  const abs=`${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`;
+  if(full)return abs+", "+hm+" ч.";
+  return diff===0?"днес":diff===1?"вчера":diff<7&&diff>0?`преди ${diff} дни`:abs}
 function countTo(sel,n){const el=$(sel),from=shown[sel]??0;shown[sel]=n;if(from===n){el.textContent=n;return}
   if(matchMedia("(prefers-reduced-motion:reduce)").matches){el.textContent=n;return}
   const t0=performance.now(),d=700;const step=t=>{const k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,3);el.textContent=Math.round(from+(n-from)*e);if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)}
@@ -324,7 +333,8 @@ function visible(){
     return !q||(t.words.every(w=>hay(s).includes(w))&&t.nums.every(d=>numHit(s,d)));
   });
   const k=$("#sort").value;
-  list.sort((a,b)=>k==="new"?(b.createdAt||0)-(a.createdAt||0):k==="rating"?(b.rating||0)-(a.rating||0)||String(a.company).localeCompare(b.company,"bg"):String(a.company||a.person).localeCompare(b.company||b.person,"bg"));
+  const byName=(a,b)=>String(a.company||a.person).localeCompare(b.company||b.person,"bg");
+  list.sort((a,b)=>k==="new"?(b.createdAt||0)-(a.createdAt||0)||byName(a,b):k==="old"?(a.createdAt||Infinity)-(b.createdAt||Infinity)||byName(a,b):k==="rating"?(b.rating||0)-(a.rating||0)||String(a.company).localeCompare(b.company,"bg"):String(a.company||a.person).localeCompare(b.company||b.person,"bg"));
   return list;
 }
 function tagsHtml(ids){return (ids||[]).map(catById).filter(Boolean).map(c=>`<span class="tag ${c.group}">${esc(c.name)}</span>`).join("")}
@@ -350,6 +360,7 @@ function render(){
   const q=$("#q").value.trim();
   const words=q?q.split(/\s+/).filter(Boolean).map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")):[];
   const re=words.length?new RegExp("("+words.join("|")+")","giu"):null;
+  const byDate=["new","old"].includes($("#sort").value);
   const qn=terms(q).nums;const eikShown=s=>s.eik&&qn.length&&qn.some(d=>eikHit(s,d));
   const H=t=>{const e=esc(t);return re?e.replace(re,"<mark>$1</mark>"):e};
   const split=v=>String(v||"").split(/[,;\n]/).map(x=>x.trim()).filter(Boolean);
@@ -363,6 +374,7 @@ function render(){
       <div class="body"><div class="co">${H(s.company||"(без име на фирма)")}</div>
       ${s.person?`<div class="who">${H(s.person)}${s.position?" · "+esc(s.position):""}</div>`:""}
       <div class="tags">${tagsHtml(s.categories)}</div>
+      ${byDate&&s.createdAt?`<div class="added"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Добавен ${fmtDate(s.createdAt)}</div>`:""}
       <div class="meta"><span class="ph-line">${eikShown(s)?`ЕИК <mark>${esc(s.eik)}</mark>`:s.phones?H(split(s.phones)[0]):(s.city?H(s.city):"")}</span>${s.rating?`<span class="rate" aria-label="${s.rating} от 5">${"★".repeat(s.rating)}</span>`:""}</div></div>
     </div>
     ${(s.phones||s.emails)?`<div class="face back" aria-hidden="true"><h4>${esc(s.company||s.person)}</h4><button type="button" class="flipback" data-act="flip" aria-label="Обърни обратно">↺</button>
@@ -389,7 +401,8 @@ if(fine){$("#grid").addEventListener("pointermove",e=>{const c=e.target.closest(
 document.querySelector(".view").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;view=b.dataset.view;try{localStorage.setItem("sup-view",view)}catch{}syncView();render()});
 function syncView(){document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===view))}
 syncView();
-$("#q").addEventListener("input",render);$("#sort").addEventListener("change",render);
+$("#q").addEventListener("input",render);$("#sort").addEventListener("change",()=>{try{localStorage.setItem("sup-sort",$("#sort").value)}catch{}render()});
+try{const v=localStorage.getItem("sup-sort");if(v&&[...$("#sort").options].some(o=>o.value===v))$("#sort").value=v}catch{}
 $("#city").addEventListener("change",e=>{city=e.target.value;render()});
 function drawCities(){
   const m=new Map();
@@ -433,6 +446,7 @@ function openDetail(id){
       ${row("Адрес",esc([s.address,s.city].filter(Boolean).join(", ")))}${row("ЕИК",s.eik?`<span class="mono">${esc(s.eik)}</span>`:"")}
       ${row("Предлага",esc(s.products))}${row("Оценка",s.rating?`<span style="color:var(--star)">${"★".repeat(s.rating)}</span>`:"")}
       ${row("Бележки",esc(s.notes).replace(/\n/g,"<br>"))}
+      ${row("Добавен",s.createdAt?esc(fmtDate(s.createdAt,true)):"")}${row("Променен",s.updatedAt&&s.updatedAt-(s.createdAt||0)>60000?esc(fmtDate(s.updatedAt,true)):"")}
     </dl>`,`<button class="btn" type="button" id="favT">${s.fav?"★ Любим":"☆ Любим"}</button><button class="btn primary" type="button" id="editB">Редактирай</button>`);
   b.addEventListener("click",async e=>{const c=e.target.closest("[data-copy]");if(!c)return;
     try{await navigator.clipboard.writeText(c.dataset.copy);toast("Копирано")}catch{toast("Маркирайте текста и го копирайте ръчно")}});
