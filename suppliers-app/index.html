@@ -1,0 +1,352 @@
+<title>Картотека доставчици</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Layout: sticky toolbar, category rail on the left (chips on phones), grid of business cards on the right; editing in a sheet. */
+:root{
+  --bg:#f3f4f2; --surface:#ffffff; --sunk:#e8eae6; --line:#d3d7d0; --fg:#1d2420; --muted:#5f6a63;
+  --accent:#2f6b4f; --accent-fg:#ffffff; --accent-soft:#dcebe2; --mach:#2f5d8a; --mach-soft:#dde7f2; --cons:#9a5b16; --cons-soft:#f5e7d4;
+  --danger:#b3261e; --star:#c98a00; --shadow:0 1px 2px rgba(20,30,25,.08),0 4px 14px rgba(20,30,25,.06);
+  --f-display:"Unbounded",system-ui,sans-serif; --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --sunk:#232b27; --line:#33403a; --fg:#e4e9e5; --muted:#9aa69f;
+  --accent:#6fbf96; --accent-fg:#0f1714; --accent-soft:#22362c; --mach:#8fb6e0; --mach-soft:#1f2c3a; --cons:#e0a868; --cons-soft:#3a2b1a;
+  --danger:#ff8a80; --star:#f0bd3c; --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --sunk:#232b27; --line:#33403a; --fg:#e4e9e5; --muted:#9aa69f;
+  --accent:#6fbf96; --accent-fg:#0f1714; --accent-soft:#22362c; --mach:#8fb6e0; --mach-soft:#1f2c3a; --cons:#e0a868; --cons-soft:#3a2b1a;
+  --danger:#ff8a80; --star:#f0bd3c; --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.25); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1280px;margin:0 auto;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:-.01em;margin:0;margin-right:auto;white-space:nowrap}
+.brand small{display:block;font-family:var(--f-mono);font-weight:400;font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.search{flex:1 1 260px;min-width:0;display:flex;align-items:center;gap:8px;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:0 10px}
+.search input{border:0;background:transparent;padding:9px 0;width:100%;min-width:0;outline:none}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--sunk)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--danger)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn:disabled{opacity:.55;cursor:default}
+.wrap{max-width:1280px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:250px minmax(0,1fr);gap:24px}
+.rail{display:flex;flex-direction:column;gap:18px;align-self:start;position:sticky;top:calc(env(safe-area-inset-top,0px) + 84px)}
+.rail h3{margin:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:2px;display:inline-block}
+.cat-list{display:flex;flex-direction:column;gap:2px}
+.cat{display:flex;justify-content:space-between;gap:8px;align-items:center;border:0;background:transparent;text-align:left;padding:6px 10px;border-radius:6px;cursor:pointer}
+.cat:hover{background:var(--sunk)}
+.cat.on{background:var(--accent-soft);color:var(--fg);font-weight:600}
+.cat .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rail .tools{display:flex;flex-direction:column;gap:6px}
+.main{min-width:0;display:flex;flex-direction:column;gap:14px}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.bar .count{color:var(--muted);font-size:13px}
+.bar select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;cursor:pointer;text-align:left;padding:0}
+.card:hover{border-color:var(--accent)}
+.thumb{aspect-ratio:85/55;max-width:100%;background:var(--sunk);display:grid;place-items:center;overflow:hidden;position:relative}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .ph{font-family:var(--f-display);font-size:30px;color:var(--muted);opacity:.5}
+.fav{position:absolute;top:8px;right:8px;background:var(--surface);border-radius:999px;width:28px;height:28px;display:grid;place-items:center;color:var(--star);font-size:15px;box-shadow:var(--shadow)}
+.card .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.card .co{font-weight:600;font-size:16px;line-height:1.25;overflow-wrap:anywhere}
+.card .who{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.card .ph-line{font-family:var(--f-mono);font-size:13px;overflow-wrap:anywhere}
+.tags{display:flex;flex-wrap:wrap;gap:4px}
+.tag{font-size:11.5px;padding:2px 8px;border-radius:999px;font-weight:500}
+.tag.machines{background:var(--mach-soft);color:var(--mach)}
+.tag.consumables{background:var(--cons-soft);color:var(--cons)}
+.empty{border:1.5px dashed var(--line);border-radius:12px;padding:40px 20px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty strong{color:var(--fg);font-size:17px}
+.notice{background:var(--cons-soft);color:var(--fg);border-radius:8px;padding:10px 14px;font-size:14px}
+/* sheet */
+.overlay{position:fixed;inset:0;background:rgba(10,15,12,.45);z-index:20;display:flex;justify-content:flex-end}
+.sheet{background:var(--bg);width:min(640px,100%);height:100%;overflow-y:auto;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
+.sheet-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px;z-index:1}
+.sheet-h h2{margin:0;font-size:16px;font-weight:600;margin-right:auto;min-width:0;overflow-wrap:anywhere}
+.sheet-b{padding:16px;display:flex;flex-direction:column;gap:18px}
+.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.drop{aspect-ratio:85/55;max-width:100%;border:1.5px dashed var(--line);border-radius:10px;background:var(--surface);display:grid;place-items:center;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;overflow:hidden;position:relative;padding:0}
+.drop img{width:100%;height:100%;object-fit:cover}
+.drop .lbl{position:absolute;left:6px;bottom:6px;background:var(--surface);color:var(--fg);font-size:11px;padding:2px 6px;border-radius:4px}
+.drop .x{position:absolute;right:6px;top:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;width:26px;height:26px;cursor:pointer;line-height:1}
+.ai{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);border-radius:10px;padding:10px 12px}
+.ai p{margin:0;font-size:13px;flex:1 1 200px;min-width:0}
+fieldset{border:0;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+fieldset .full{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500;min-width:0}
+label.f input,label.f textarea,label.f select{background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:15px;color:var(--fg);width:100%;min-width:0}
+label.f textarea{min-height:70px;resize:vertical}
+.hl{animation:hl 1.6s ease-out}
+@keyframes hl{from{background:var(--accent-soft)}}
+.picker h4{margin:6px 0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:13px}
+.chip.on.machines{background:var(--mach-soft);border-color:var(--mach);color:var(--mach);font-weight:600}
+.chip.on.consumables{background:var(--cons-soft);border-color:var(--cons);color:var(--cons);font-weight:600}
+.stars{display:flex;gap:2px}
+.stars button{border:0;background:transparent;font-size:22px;cursor:pointer;color:var(--line);padding:0 2px}
+.stars button.on{color:var(--star)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.foot{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;border-top:1px solid var(--line);padding-top:14px}
+/* detail */
+.big-photo{width:100%;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px 12px;font-size:14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;overflow-wrap:anywhere;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mono{font-family:var(--f-mono)}
+.copy{border:1px solid var(--line);background:var(--surface);border-radius:6px;font-size:11px;padding:1px 7px;cursor:pointer;color:var(--muted)}
+.cm-row{display:grid;grid-template-columns:minmax(0,1fr) 140px auto;gap:8px;align-items:center}
+.cm-row input,.cm-row select{background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:7px 9px;min-width:0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:30;font-size:14px;max-width:calc(100% - 32px)}
+.spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin,.hl{animation:none}}
+@media (max-width:760px){
+  .wrap{grid-template-columns:minmax(0,1fr);gap:14px}
+  .rail{position:static;gap:10px}
+  .cat-list{flex-direction:row;flex-wrap:wrap;gap:6px}
+  .cat{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:13px}
+  .rail .tools{flex-direction:row;flex-wrap:wrap}
+  fieldset{grid-template-columns:1fr}
+  .cm-row{grid-template-columns:minmax(0,1fr) auto}
+  .cm-row select{grid-column:1}
+}
+</style>
+
+<header class="top"><div class="top-in">
+  <h1 class="brand">Доставчици<small>картотека визитки</small></h1>
+  <label class="search" for="q"><span aria-hidden="true">⌕</span><input id="q" type="search" placeholder="Търси фирма, човек, телефон, град…" autocomplete="off"></label>
+  <button class="btn primary" id="addBtn" type="button">+ Нова визитка</button>
+</div></header>
+
+<div class="wrap">
+  <aside class="rail" id="rail" aria-label="Категории">
+    <div><div class="cat-list"><button class="cat on" data-cat="__all" type="button">Всички <span class="n" id="nAll">0</span></button><button class="cat" data-cat="__fav" type="button">★ Любими <span class="n" id="nFav">0</span></button><button class="cat" data-cat="__none" type="button">Без категория <span class="n" id="nNone">0</span></button></div></div>
+    <div><h3><span class="dot" style="background:var(--mach)"></span>Машини</h3><div class="cat-list" id="catMachines"></div></div>
+    <div><h3><span class="dot" style="background:var(--cons)"></span>Консумативи</h3><div class="cat-list" id="catCons"></div></div>
+    <div class="tools"><button class="btn" id="manageBtn" type="button">Категории…</button><button class="btn" id="exportBtn" type="button" hidden>Експорт CSV</button></div>
+  </aside>
+  <main class="main">
+    <div id="notice" class="notice" hidden></div>
+    <div class="bar"><span class="count" id="count">Зареждане…</span>
+      <label for="sort" class="count">Подреди: <select id="sort"><option value="name">по име</option><option value="new">най-нови</option><option value="rating">по оценка</option></select></label></div>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" hidden><strong>Още няма доставчици</strong><span>Натиснете „+ Нова визитка“, снимайте визитката и приложението ще попълни данните само.</span><button class="btn primary" type="button" onclick="openEditor()">+ Нова визитка</button></div>
+  </main>
+</div>
+<div id="layer"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const GROUPS={machines:"Машини",consumables:"Консумативи"};
+let db=null,assets=null,sample=null,downloads=null,canImages=false;
+let suppliers=[],categories=[],filter="__all",loaded=false;
+
+function toast(t){const el=document.createElement("div");el.className="toast";el.textContent=t;document.body.append(el);setTimeout(()=>el.remove(),2600)}
+function notice(t){const n=$("#notice");n.textContent=t||"";n.hidden=!t}
+const blobUrl=id=>id?"/_blob/"+id:"";
+const catById=id=>categories.find(c=>c.id===id);
+const sortCats=a=>[...a].sort((x,y)=>(x.order??0)-(y.order??0)||String(x.name).localeCompare(y.name,"bg"));
+
+async function boot(){
+  if(!window.claude?.use){notice("Отворете страницата в claude.ai, за да се зареди базата с доставчици.");$("#count").textContent="";return}
+  [db,assets,sample,downloads]=await Promise.all(["db","assets","sample","downloads"].map(n=>claude.use(n).catch(()=>null)));
+  if(sample){try{canImages=!!(await sample.limits()).images}catch{canImages=false}}
+  $("#exportBtn").hidden=!downloads;
+  if(!db){notice("Базата не е достъпна. Влезте в профила си в claude.ai и презаредете.");$("#count").textContent="";render();return}
+  const timer=setTimeout(()=>{if(!loaded)notice("Базата отговаря бавно. Данните ще се появят, щом се заредят.")},10000);
+  db.collection("categories").onSnapshot(s=>{categories=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>notice("Категориите не се заредиха: "+e.message));
+  db.collection("suppliers").onSnapshot(s=>{loaded=true;clearTimeout(timer);notice("");suppliers=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{clearTimeout(timer);notice("Доставчиците не се заредиха: "+e.message)});
+}
+
+function hay(s){const cats=(s.categories||[]).map(id=>catById(id)?.name||"").join(" ");
+  return [s.company,s.person,s.position,s.phones,s.emails,s.website,s.address,s.city,s.eik,s.notes,s.products,cats].join(" ").toLowerCase()}
+function visible(){
+  const q=$("#q").value.trim().toLowerCase();
+  let list=suppliers.filter(s=>{
+    if(filter==="__fav"&&!s.fav)return false;
+    if(filter==="__none"&&(s.categories||[]).some(id=>catById(id)))return false;
+    if(!filter.startsWith("__")&&!(s.categories||[]).includes(filter))return false;
+    return !q||q.split(/\s+/).every(w=>hay(s).includes(w));
+  });
+  const k=$("#sort").value;
+  list.sort((a,b)=>k==="new"?(b.createdAt||0)-(a.createdAt||0):k==="rating"?(b.rating||0)-(a.rating||0)||String(a.company).localeCompare(b.company,"bg"):String(a.company||a.person).localeCompare(b.company||b.person,"bg"));
+  return list;
+}
+function tagsHtml(ids){return (ids||[]).map(catById).filter(Boolean).map(c=>`<span class="tag ${c.group}">${esc(c.name)}</span>`).join("")}
+
+function render(){
+  const count=id=>suppliers.filter(s=>(s.categories||[]).includes(id)).length;
+  const catBtn=c=>`<button class="cat${filter===c.id?" on":""}" data-cat="${c.id}" type="button">${esc(c.name)} <span class="n">${count(c.id)}</span></button>`;
+  $("#catMachines").innerHTML=sortCats(categories.filter(c=>c.group==="machines")).map(catBtn).join("")||`<span class="count">Няма категории</span>`;
+  $("#catCons").innerHTML=sortCats(categories.filter(c=>c.group==="consumables")).map(catBtn).join("")||`<span class="count">Няма категории</span>`;
+  document.querySelectorAll(".rail [data-cat^='__']").forEach(b=>b.classList.toggle("on",b.dataset.cat===filter));
+  $("#nAll").textContent=suppliers.length;$("#nFav").textContent=suppliers.filter(s=>s.fav).length;
+  $("#nNone").textContent=suppliers.filter(s=>!(s.categories||[]).some(id=>catById(id))).length;
+  const list=visible();
+  $("#count").textContent=db?(loaded?`${list.length} от ${suppliers.length} доставчика`:"Зареждане…"):"";
+  $("#empty").hidden=!(loaded&&suppliers.length===0);
+  $("#grid").innerHTML=list.map(s=>`<button class="card" type="button" data-id="${s.id}">
+    <div class="thumb">${s.front?`<img src="${blobUrl(s.front)}" alt="" loading="lazy">`:`<span class="ph">${esc((s.company||s.person||"?").trim()[0]||"?")}</span>`}${s.fav?`<span class="fav">★</span>`:""}</div>
+    <div class="body"><div class="co">${esc(s.company||"(без име на фирма)")}</div>
+    ${s.person?`<div class="who">${esc(s.person)}${s.position?" · "+esc(s.position):""}</div>`:""}
+    ${s.phones?`<div class="ph-line">${esc(String(s.phones).split(/[,;]/)[0].trim())}</div>`:""}
+    <div class="tags">${tagsHtml(s.categories)}</div></div></button>`).join("");
+  if(loaded&&suppliers.length&&!list.length)$("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1"><strong>Няма съвпадения</strong><span>Сменете търсенето или категорията.</span></div>`;
+}
+
+$("#rail").addEventListener("click",e=>{const b=e.target.closest("[data-cat]");if(b){filter=b.dataset.cat;render()}});
+$("#grid").addEventListener("click",e=>{const c=e.target.closest(".card");if(c)openDetail(c.dataset.id)});
+$("#q").addEventListener("input",render);$("#sort").addEventListener("change",render);
+$("#addBtn").addEventListener("click",()=>openEditor());
+$("#manageBtn").addEventListener("click",openCategories);
+$("#exportBtn").addEventListener("click",exportCsv);
+
+/* ---------- overlay ---------- */
+function sheet(title,bodyHtml,headBtns=""){
+  $("#layer").innerHTML=`<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="sheet-h"><h2>${esc(title)}</h2>${headBtns}<button class="btn ghost" type="button" id="closeSheet" aria-label="Затвори">✕</button></div><div class="sheet-b">${bodyHtml}</div></div></div>`;
+  $("#closeSheet").onclick=closeSheet;$("#ov").addEventListener("click",e=>{if(e.target.id==="ov")closeSheet()});
+  return $("#ov .sheet-b");
+}
+function closeSheet(){$("#layer").innerHTML=""}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
+
+/* ---------- detail ---------- */
+function openDetail(id){
+  const s=suppliers.find(x=>x.id===id);if(!s)return;
+  const lines=(v,kind)=>String(v||"").split(/[,;\n]/).map(x=>x.trim()).filter(Boolean).map(x=>{
+    const href=kind==="tel"?"tel:"+x.replace(/[^\d+]/g,""):kind==="mail"?"mailto:"+x:(/^https?:/i.test(x)?x:"https://"+x);
+    return `<span class="mono"><a href="${esc(href)}" ${kind==="web"?'target="_blank" rel="noopener"':""}>${esc(x)}</a></span><button class="copy" type="button" data-copy="${esc(x)}">копирай</button>`}).join("<br>");
+  const row=(k,v)=>v?`<dt>${k}</dt><dd>${v}</dd>`:"";
+  const b=sheet(s.company||s.person||"Доставчик",`
+    ${s.front?`<img class="big-photo" src="${blobUrl(s.front)}" alt="Визитка – лице">`:""}
+    ${s.back?`<img class="big-photo" src="${blobUrl(s.back)}" alt="Визитка – гръб">`:""}
+    <div class="tags">${tagsHtml(s.categories)}</div>
+    <dl class="kv">
+      ${row("Фирма",esc(s.company))}${row("Лице",esc(s.person))}${row("Длъжност",esc(s.position))}
+      ${row("Телефон",lines(s.phones,"tel"))}${row("Имейл",lines(s.emails,"mail"))}${row("Сайт",lines(s.website,"web"))}
+      ${row("Адрес",esc([s.address,s.city].filter(Boolean).join(", ")))}${row("ЕИК",s.eik?`<span class="mono">${esc(s.eik)}</span>`:"")}
+      ${row("Предлага",esc(s.products))}${row("Оценка",s.rating?`<span style="color:var(--star)">${"★".repeat(s.rating)}</span>`:"")}
+      ${row("Бележки",esc(s.notes).replace(/\n/g,"<br>"))}
+    </dl>`,`<button class="btn" type="button" id="favT">${s.fav?"★ Любим":"☆ Любим"}</button><button class="btn primary" type="button" id="editB">Редактирай</button>`);
+  b.addEventListener("click",async e=>{const c=e.target.closest("[data-copy]");if(!c)return;
+    try{await navigator.clipboard.writeText(c.dataset.copy);toast("Копирано")}catch{toast("Маркирайте текста и го копирайте ръчно")}});
+  $("#editB").onclick=()=>openEditor(s);
+  $("#favT").onclick=async()=>{try{await db.collection("suppliers").doc(s.id).update({fav:!s.fav});s.fav=!s.fav;$("#favT").textContent=s.fav?"★ Любим":"☆ Любим"}catch(e){toast("Не се запази: "+e.message)}};
+}
+
+/* ---------- editor ---------- */
+async function shrink(file){
+  try{const bmp=await createImageBitmap(file);const m=1600,r=Math.min(1,m/Math.max(bmp.width,bmp.height));
+    const c=document.createElement("canvas");c.width=Math.round(bmp.width*r);c.height=Math.round(bmp.height*r);
+    c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+    return await new Promise(res=>c.toBlob(b=>res(b||file),"image/jpeg",.86));}catch{return file}
+}
+const FIELDS=[["company","Фирма","full"],["person","Лице за контакт"],["position","Длъжност"],["phones","Телефони (разделени със запетая)","full"],["emails","Имейли"],["website","Сайт"],["address","Адрес"],["city","Град"],["eik","ЕИК / ДДС №"],["products","Какво предлага","full"],["notes","Бележки","full",true]];
+
+function openEditor(s){
+  const isNew=!s; s=s?{...s}:{categories:[],rating:0,fav:false};
+  const ph={front:{id:s.front||null,blob:null},back:{id:s.back||null,blob:null}};
+  const sel=new Set(s.categories||[]);
+  const b=sheet(isNew?"Нова визитка":"Редактиране",`
+    <div class="photos">
+      ${["front","back"].map(k=>`<div class="drop" role="button" tabindex="0" id="d_${k}" data-k="${k}"></div>`).join("")}
+      <input type="file" id="file" accept="image/*" hidden>
+    </div>
+    <div class="ai" id="aiBox" ${sample&&canImages?"":"hidden"}><p>Снимайте визитката и натиснете бутона: полетата ще се попълнят автоматично. Проверете ги преди запис.</p><button class="btn primary" type="button" id="readBtn">Разчети визитката</button></div>
+    <fieldset id="fs">${FIELDS.map(([k,l,cls,ta])=>`<label class="f ${cls||""}" for="f_${k}">${l}${ta?`<textarea id="f_${k}">${esc(s[k])}</textarea>`:`<input id="f_${k}" value="${esc(s[k])}">`}</label>`).join("")}</fieldset>
+    <div class="picker" id="picker"></div>
+    <div class="row"><span class="count">Оценка:</span><div class="stars" id="stars"></div><label class="row" for="f_fav" style="margin-left:auto"><input type="checkbox" id="f_fav" ${s.fav?"checked":""}> Любим</label></div>
+    <div class="foot"><div>${isNew?"":`<button class="btn danger" type="button" id="delBtn">Изтрий</button>`}</div><div class="row"><button class="btn" type="button" id="cancelBtn">Отказ</button><button class="btn primary" type="button" id="saveBtn">Запази</button></div></div>`);
+  let target="front";
+  const drawDrop=k=>{const d=$("#d_"+k),src=ph[k].blob?URL.createObjectURL(ph[k].blob):blobUrl(ph[k].id);
+    d.innerHTML=src?`<img src="${src}" alt=""><span class="lbl">${k==="front"?"Лице":"Гръб"}</span><button class="x" type="button" data-rm="${k}" aria-label="Премахни">✕</button>`:`<span>${k==="front"?"📷 Снимка на лицето":"Гръб (по желание)"}</span>`};
+  drawDrop("front");drawDrop("back");
+  b.querySelectorAll(".drop").forEach(d=>{const go=e=>{if(e.target.closest("[data-rm]"))return;target=d.dataset.k;$("#file").click()};d.onclick=go;d.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go(e)}}});
+  b.addEventListener("click",e=>{const r=e.target.closest("[data-rm]");if(r){e.stopPropagation();ph[r.dataset.rm]={id:null,blob:null};drawDrop(r.dataset.rm)}});
+  $("#file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;ph[target].blob=await shrink(f);drawDrop(target)};
+  if(!assets){b.querySelector(".photos").insertAdjacentHTML("afterend",`<p class="count">Качването на снимки е достъпно само за редакторите на картотеката.</p>`)}
+
+  const drawPicker=()=>{$("#picker").innerHTML=Object.entries(GROUPS).map(([g,n])=>`<h4>${n}</h4><div class="chips">${sortCats(categories.filter(c=>c.group===g)).map(c=>`<button type="button" class="chip ${g}${sel.has(c.id)?" on":""}" data-c="${c.id}">${esc(c.name)}</button>`).join("")||`<span class="count">Няма категории – добавете от „Категории…“</span>`}</div>`).join("")};
+  drawPicker();
+  $("#picker").onclick=e=>{const c=e.target.closest("[data-c]");if(!c)return;sel.has(c.dataset.c)?sel.delete(c.dataset.c):sel.add(c.dataset.c);drawPicker()};
+  let rating=s.rating||0;const drawStars=()=>{$("#stars").innerHTML=[1,2,3,4,5].map(i=>`<button type="button" data-r="${i}" class="${i<=rating?"on":""}" aria-label="${i} звезди">★</button>`).join("")};
+  drawStars();$("#stars").onclick=e=>{const r=e.target.closest("[data-r]");if(r){rating=+r.dataset.r===rating?0:+r.dataset.r;drawStars()}};
+  $("#cancelBtn").onclick=closeSheet;
+
+  $("#readBtn")&&($("#readBtn").onclick=async()=>{
+    const imgs=[ph.front.blob,ph.back.blob].filter(Boolean);
+    if(!imgs.length){toast("Първо добавете снимка на визитката");return}
+    const btn=$("#readBtn");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> Чета…`;
+    const catList=categories.map(c=>`- ${c.id}: ${c.name} (${GROUPS[c.group]})`).join("\n");
+    try{
+      const r=await sample.json(`Прикачени са снимки на визитка на доставчик (лице и евентуално гръб). Разчети текста (може да е на български, латиница или друг език) и върни САМО JSON обект с ключове:
+company, person, position, phones (низ, няколко телефона разделени със запетая), emails (низ, разделени със запетая), website, address (улица и номер), city, eik (ЕИК/ДДС номер ако има), products (кратко какво предлагат, на български, ако личи от визитката), categoryIds (масив с id-та от списъка по-долу, които подхождат на доставчика; празен масив ако не личи).
+Липсващите полета остави празен низ. Не измисляй данни.
+Категории:
+${catList||"(няма)"}`,{images:imgs,modelTier:"default"});
+      let n=0;
+      for(const [k] of FIELDS){const v=r?.[k];if(typeof v==="string"&&v.trim()&&!$("#f_"+k).value.trim()){$("#f_"+k).value=v.trim();$("#f_"+k).classList.add("hl");n++}}
+      if(Array.isArray(r?.categoryIds))r.categoryIds.forEach(id=>{if(catById(String(id)))sel.add(String(id))});drawPicker();
+      toast(n?`Попълнени ${n} полета – проверете ги`:"Не открих нови данни в снимката");
+    }catch(e){toast(e.code==="not_granted"?"Разчитането не е разрешено":e.code==="rate_limited"?"Твърде много заявки – опитайте след малко":"Не успях да разчета визитката: "+(e.message||e.code))}
+    finally{btn.disabled=false;btn.textContent="Разчети визитката"}
+  });
+
+  $("#delBtn")&&($("#delBtn").onclick=()=>{const d=$("#delBtn");if(d.dataset.arm){del()}else{d.dataset.arm=1;d.textContent="Потвърди изтриването"}});
+  async function del(){try{await db.collection("suppliers").doc(s.id).delete();for(const k of["front","back"])if(s[k]&&assets)assets.delete(s[k]).catch(()=>{});closeSheet();toast("Изтрито")}catch(e){toast("Не се изтри: "+e.message)}}
+
+  $("#saveBtn").onclick=async()=>{
+    const data={};for(const [k] of FIELDS)data[k]=$("#f_"+k).value.trim();
+    if(!data.company&&!data.person){toast("Попълнете поне фирма или лице за контакт");$("#f_company").focus();return}
+    const btn=$("#saveBtn");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> Записвам…`;
+    try{
+      for(const k of["front","back"]){
+        if(ph[k].blob){if(!assets)throw new Error("нямате право да качвате снимки");const u=await assets.upload(ph[k].blob);if(s[k])assets.delete(s[k]).catch(()=>{});data[k]=u.id}
+        else{data[k]=ph[k].id;if(s[k]&&!ph[k].id)assets?.delete(s[k]).catch(()=>{})}
+      }
+      Object.assign(data,{categories:[...sel],rating,fav:$("#f_fav").checked,updatedAt:Date.now()});
+      if(isNew){data.createdAt=Date.now();await db.collection("suppliers").add(data)}else await db.collection("suppliers").doc(s.id).update(data);
+      closeSheet();toast("Запазено");
+    }catch(e){toast("Не се запази: "+e.message);btn.disabled=false;btn.textContent="Запази"}
+  };
+}
+window.openEditor=openEditor;
+
+/* ---------- categories ---------- */
+function openCategories(){
+  const b=sheet("Категории",`<p class="count" style="margin:0">Разделете доставчиците по вид машина или консуматив. Промените важат веднага.</p><div id="cmList" style="display:flex;flex-direction:column;gap:8px"></div>
+  <div class="cm-row" style="border-top:1px solid var(--line);padding-top:14px"><input id="cmNew" placeholder="Нова категория, напр. „Етикетиращи машини“"><select id="cmGroup"><option value="machines">Машини</option><option value="consumables">Консумативи</option></select><button class="btn primary" type="button" id="cmAdd">Добави</button></div>`);
+  const draw=()=>{$("#cmList").innerHTML=Object.entries(GROUPS).map(([g,n])=>`<h3 style="margin:8px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">${n}</h3>`+sortCats(categories.filter(c=>c.group===g)).map(c=>`<div class="cm-row" data-id="${c.id}"><input value="${esc(c.name)}" data-f="name" aria-label="Име"><select data-f="group" aria-label="Група">${Object.entries(GROUPS).map(([v,l])=>`<option value="${v}" ${v===c.group?"selected":""}>${l}</option>`).join("")}</select><button class="btn danger" type="button" data-del>Изтрий</button></div>`).join("")).join("")};
+  draw();
+  $("#cmList").addEventListener("change",async e=>{const r=e.target.closest("[data-id]");if(!r)return;const v=e.target.value.trim();if(!v)return;
+    try{await db.collection("categories").doc(r.dataset.id).update({[e.target.dataset.f]:v});toast("Запазено")}catch(err){toast("Не се запази: "+err.message)}});
+  $("#cmList").addEventListener("click",async e=>{const d=e.target.closest("[data-del]");if(!d)return;
+    if(!d.dataset.arm){d.dataset.arm=1;d.textContent="Сигурни ли сте?";return}
+    try{await db.collection("categories").doc(d.closest("[data-id]").dataset.id).delete();if(filter===d.closest("[data-id]").dataset.id)filter="__all";draw()}catch(err){toast("Не се изтри: "+err.message)}});
+  $("#cmAdd").onclick=async()=>{const name=$("#cmNew").value.trim();if(!name){$("#cmNew").focus();return}
+    try{await db.collection("categories").add({name,group:$("#cmGroup").value,order:Date.now()});$("#cmNew").value="";setTimeout(draw,300)}catch(err){toast("Не се добави: "+err.message)}};
+}
+
+/* ---------- export ---------- */
+async function exportCsv(){
+  const cols=[["company","Фирма"],["person","Лице"],["position","Длъжност"],["phones","Телефони"],["emails","Имейли"],["website","Сайт"],["address","Адрес"],["city","Град"],["eik","ЕИК"],["products","Предлага"],["cats","Категории"],["rating","Оценка"],["notes","Бележки"]];
+  const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const rows=visible().map(s=>cols.map(([k])=>q(k==="cats"?(s.categories||[]).map(id=>catById(id)?.name).filter(Boolean).join("; "):s[k])).join(";"));
+  const csv="﻿"+[cols.map(c=>q(c[1])).join(";"),...rows].join("\r\n");
+  try{await downloads.save({filename:"dostavchici.csv",data:new Blob([csv],{type:"text/csv"})})}catch(e){if(e?.code!=="declined")toast("Файлът не се запази")}
+}
+
+render();boot();
+</script>
