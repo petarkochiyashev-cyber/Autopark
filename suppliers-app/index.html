@@ -95,6 +95,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between;border-top:1px solid var(--line);padding-top:14px}
 .bar .count{color:var(--muted);font-size:13px}
 .bar-r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bar select.active{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
 .bar select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 10px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;cursor:pointer;text-align:left;padding:0;transition:transform .18s ease,box-shadow .18s ease,border-color .18s}
@@ -221,6 +222,8 @@ label.f textarea{min-height:70px;resize:vertical}
   .cat-list{flex-wrap:nowrap;overflow-x:auto;width:100%;padding-bottom:4px;scrollbar-width:none}
   .cat{flex:none}
   #addBtn{display:none}.fab{display:block}
+  .bar-r label.count{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .bar-r select{flex:1 1 140px;min-width:0}
   .search kbd{display:none}
   fieldset{grid-template-columns:1fr}
   .cm-row{grid-template-columns:minmax(0,1fr) auto}
@@ -259,7 +262,7 @@ label.f textarea{min-height:70px;resize:vertical}
   <main class="main">
     <div id="notice" class="notice" hidden></div>
     <div class="bar"><span class="count" id="count">Зареждане…</span>
-      <div class="bar-r"><div class="view" role="group" aria-label="Изглед"><button type="button" data-view="grid" aria-pressed="true">▦ Карти</button><button type="button" data-view="list" aria-pressed="false">☰ Списък</button></div><label for="sort" class="count">Подреди</label><select id="sort"><option value="name">по име</option><option value="new">най-нови</option><option value="rating">по оценка</option></select></div></div>
+      <div class="bar-r"><div class="view" role="group" aria-label="Изглед"><button type="button" data-view="grid" aria-pressed="true">▦ Карти</button><button type="button" data-view="list" aria-pressed="false">☰ Списък</button></div><label for="city" class="count">Град</label><select id="city"><option value="">Всички градове</option></select><label for="sort" class="count">Подреди</label><select id="sort"><option value="name">по име</option><option value="new">най-нови</option><option value="rating">по оценка</option></select></div></div>
     <div class="grid" id="grid"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
     <div class="empty" id="empty" hidden><strong>Първата визитка</strong><span>Натиснете „+ Нова визитка“, снимайте визитката и данните ще се попълнят сами.</span><button class="btn primary" type="button" onclick="openEditor()">+ Нова визитка</button></div>
   </main>
@@ -272,7 +275,9 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const GROUPS={machines:"Машини",consumables:"Консумативи"};
 let db=null,assets=null,sample=null,downloads=null,canImages=false;
-let suppliers=[],categories=[],filter="__all",loaded=false,lastKey="",view="grid";
+let suppliers=[],categories=[],filter="__all",loaded=false,lastKey="",view="grid",city="";
+/* Cities compare without case, spaces or a "гр." prefix, so "гр. Пловдив" and "пловдив" are one city. */
+const cityKey=v=>String(v||"").trim().replace(/^(гр\.?|град|с\.|село)\s*/i,"").replace(/\s+/g," ").toLowerCase();
 try{view=localStorage.getItem("sup-view")==="list"?"list":"grid"}catch{}
 const shown={};
 function countTo(sel,n){const el=$(sel),from=shown[sel]??0;shown[sel]=n;if(from===n){el.textContent=n;return}
@@ -315,6 +320,7 @@ function visible(){
     if(filter==="__fav"&&!s.fav)return false;
     if(filter==="__none"&&(s.categories||[]).some(id=>catById(id)))return false;
     if(!filter.startsWith("__")&&!(s.categories||[]).includes(filter))return false;
+    if(city&&(city==="__none"?!!cityKey(s.city):cityKey(s.city)!==city))return false;
     return !q||(t.words.every(w=>hay(s).includes(w))&&t.nums.every(d=>numHit(s,d)));
   });
   const k=$("#sort").value;
@@ -335,6 +341,7 @@ function render(){
   const inGroup=g=>suppliers.filter(s=>(s.categories||[]).some(id=>catById(id)?.group===g)).length;
   if(loaded){countTo("#sTotal",suppliers.length);countTo("#sMach",inGroup("machines"));countTo("#sCons",inGroup("consumables"));countTo("#sFav",suppliers.filter(s=>s.fav).length)}
   document.querySelectorAll(".stat[data-cat]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.cat===filter));
+  drawCities();
   const list=visible();
   $("#count").textContent=db?(loaded?`${list.length} от ${suppliers.length} доставчика`:"Зареждане…"):"";
   $("#empty").hidden=!(loaded&&suppliers.length===0);
@@ -346,7 +353,7 @@ function render(){
   const qn=terms(q).nums;const eikShown=s=>s.eik&&qn.length&&qn.some(d=>eikHit(s,d));
   const H=t=>{const e=esc(t);return re?e.replace(re,"<mark>$1</mark>"):e};
   const split=v=>String(v||"").split(/[,;\n]/).map(x=>x.trim()).filter(Boolean);
-  const key=[filter,q,$("#sort").value,view,list.length].join("|");const animate=key!==lastKey;lastKey=key;
+  const key=[filter,q,$("#sort").value,view,city,list.length].join("|");const animate=key!==lastKey;lastKey=key;
   $("#grid").classList.toggle("list",view==="list");
   $("#grid").innerHTML=list.map((s,i)=>`<div class="card${animate?" enter":""}" role="button" tabindex="0" data-id="${s.id}" style="--i:${Math.min(i,12)}" aria-label="${esc(s.company||s.person)}">
     <span class="glare"></span>
@@ -383,6 +390,16 @@ document.querySelector(".view").addEventListener("click",e=>{const b=e.target.cl
 function syncView(){document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===view))}
 syncView();
 $("#q").addEventListener("input",render);$("#sort").addEventListener("change",render);
+$("#city").addEventListener("change",e=>{city=e.target.value;render()});
+function drawCities(){
+  const m=new Map();
+  for(const s of suppliers){const k=cityKey(s.city);if(!k)continue;const e=m.get(k)||{name:String(s.city).trim().replace(/^(гр\.?|град|с\.|село)\s*/i,""),n:0};e.n++;m.set(k,e)}
+  const none=suppliers.filter(s=>!cityKey(s.city)).length;
+  if(city&&city!=="__none"&&!m.has(city))city="";
+  const opts=[`<option value="">Всички градове</option>`,...[...m].sort((a,b)=>a[1].name.localeCompare(b[1].name,"bg")).map(([k,e])=>`<option value="${esc(k)}">${esc(e.name)} (${e.n})</option>`)];
+  if(none)opts.push(`<option value="__none">Без град (${none})</option>`);
+  const html=opts.join("");const el=$("#city");if(el.dataset.html!==html){el.innerHTML=html;el.dataset.html=html}
+  el.value=city;el.classList.toggle("active",!!city)}
 $("#addBtn").addEventListener("click",()=>openEditor());$("#fab").addEventListener("click",()=>openEditor());
 $("#stats").addEventListener("click",e=>{const b=e.target.closest(".stat");if(!b)return;
   if(b.dataset.cat){filter=b.dataset.cat;render()}else{const row=$(b.dataset.jump==="machines"?"#rowMachines":"#rowCons");row.scrollIntoView({behavior:"smooth",block:"center"});row.querySelector(".cat")?.focus({preventScroll:true})}});
