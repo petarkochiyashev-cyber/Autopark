@@ -17,11 +17,22 @@ function ai_enabled(): bool
 }
 
 /**
+ * Reads a supplier from pasted text (e-mail signature, web page, message).
+ * @param list<array{id:int, name:string, grp:string}> $categories
+ * @return array<string,mixed>
+ */
+function read_supplier_text(string $text, array $categories): array
+{
+    return read_business_card([], $categories, $text);
+}
+
+/**
+ * Reads a supplier from business-card photos, or from pasted text when $text is given.
  * @param list<array{data:string, type:string}> $images raw image bytes and MIME type
  * @param list<array{id:int, name:string, grp:string}> $categories
  * @return array<string,mixed>
  */
-function read_business_card(array $images, array $categories): array
+function read_business_card(array $images, array $categories, ?string $text = null): array
 {
     require_once APP_ROOT . '/vendor/autoload.php';
     $cfg = config();
@@ -39,15 +50,24 @@ function read_business_card(array $images, array $categories): array
             'source' => ['type' => 'base64', 'mediaType' => $img['type'], 'data' => base64_encode($img['data'])],
         ];
     }
-    $content[] = ['type' => 'text', 'text' =>
-        "Снимките по-горе са на визитка на доставчик (лице и евентуално гръб). Разчети текста от визитката; "
-        . "той може да е на български, на латиница или на друг език.\n"
-        . "Попълни полетата с данните от визитката. Телефоните и имейлите, ако са няколко, раздели със запетая. "
-        . "В products напиши накратко на български какво предлага фирмата, ако личи от визитката. "
+    $rules = "Телефоните и имейлите, ако са няколко, раздели със запетая. "
+        . "В products напиши накратко на български какво предлага фирмата, ако личи. "
         . "В categoryIds сложи номерата на подходящите категории от списъка; празен масив, ако не личи. "
-        . "Ако някое поле липсва на визитката, остави празен низ. Не измисляй данни.\n\nКатегории:\n"
-        . ($catList ?: '(няма)'),
-    ];
+        . "Ако някое поле липсва, остави празен низ. Не измисляй данни.\n\nКатегории:\n"
+        . ($catList ?: '(няма)');
+    if ($text !== null) {
+        $content[] = ['type' => 'text', 'text' =>
+            "Текстът по-долу съдържа данни за един доставчик: подпис от имейл, визитка, текст от сайт или съобщение. "
+            . "Разпредели данните по полетата. " . $rules
+            . "\n\nТекст:\n\"\"\"\n" . mb_substr($text, 0, 20000) . "\n\"\"\"",
+        ];
+    } else {
+        $content[] = ['type' => 'text', 'text' =>
+            "Снимките по-горе са на визитка на доставчик (лице и евентуално гръб). Разчети текста от визитката; "
+            . "той може да е на български, на латиница или на друг език.\n"
+            . "Попълни полетата с данните от визитката. " . $rules,
+        ];
+    }
 
     $str = ['type' => 'string'];
     $fields = ['company', 'person', 'position', 'phones', 'emails', 'website', 'address', 'city', 'eik', 'products'];

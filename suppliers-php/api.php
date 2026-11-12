@@ -15,7 +15,7 @@ $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
 if ($isPost) {
     check_csrf($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
 }
-$writes = ['supplier_save', 'supplier_fav', 'supplier_delete', 'category_save', 'category_delete', 'read_card', 'user_save', 'user_delete'];
+$writes = ['parse_text', 'import_rows', 'supplier_save', 'supplier_fav', 'supplier_delete', 'category_save', 'category_delete', 'read_card', 'user_save', 'user_delete'];
 if (in_array($action, $writes, true) && !$isPost) {
     json_error('Това действие изисква POST.', 405);
 }
@@ -196,6 +196,58 @@ switch ($action) {
         }
         $r['categoryIds'] = array_map('strval', array_filter((array)($r['categoryIds'] ?? []), 'is_numeric'));
         json_out(['card' => $r]);
+
+    case 'parse_text':
+        need_editor($user);
+        if (!ai_enabled()) json_error('Разчитането не е настроено. Добавете anthropic_api_key в config.php.');
+        $text = trim((string)($in['text'] ?? ''));
+        if ($text === '') json_error('Първо поставете текст.');
+        $cats = array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name'], 'grp' => $c['group']], load_categories());
+        try {
+            $r = read_supplier_text($text, $cats);
+        } catch (RuntimeException $e) {
+            json_error($e->getMessage(), 502);
+        }
+        $r['categoryIds'] = array_map('strval', array_filter((array)($r['categoryIds'] ?? []), 'is_numeric'));
+        json_out(['card' => $r]);
+
+    case 'import_rows':
+        need_editor($user);
+        $rows = $in['rows'] ?? null;
+        if (!is_array($rows) || count($rows) > 200) json_error('Изпратете до 200 реда наведнъж.');
+        $grp = in_array($in['group'] ?? '', ['machines', 'consumables'], true) ? $in['group'] : 'consumables';
+        $pdo = db();
+        $pdo->beginTransaction();
+        $ids = [];
+        foreach ($pdo->query('SELECT id, name FROM categories')->fetchAll() as $c) $ids[mb_strtolower(trim($c['name']))] = (int)$c['id'];
+        $order = (int)$pdo->query('SELECT COALESCE(MAX(sort_order), 0) FROM categories')->fetchColumn();
+        $insCat = $pdo->prepare('INSERT INTO categories (name, grp, sort_order) VALUES (?, ?, ?)');
+        foreach ((array)($in['newCats'] ?? []) as $name) {
+            $name = mb_substr(trim((string)$name), 0, 190);
+            if ($name === '' || isset($ids[mb_strtolower($name)])) continue;
+            $insCat->execute([$name, $grp, ++$order]);
+            $ids[mb_strtolower($name)] = (int)$pdo->lastInsertId();
+        }
+        $insSup = $pdo->prepare('INSERT INTO suppliers (company, person, position, phones, emails, website, address, city, eik, products, notes, rating, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $insSc = $pdo->prepare('INSERT IGNORE INTO supplier_categories (supplier_id, category_id) VALUES (?, ?)');
+        $added = 0;
+        foreach ($rows as $r) {
+            if (!is_array($r)) continue;
+            $v = fn(string $k, int $max = 255) => str_in($r, $k, $max);
+            if ($v('company') === '' && $v('person') === '') continue;
+            $insSup->execute([$v('company'), $v('person'), $v('position'), $v('phones', 2000), $v('emails', 2000), $v('website'),
+                $v('address'), $v('city', 120), $v('eik', 40), $v('products', 4000), $v('notes', 8000),
+                max(0, min(5, (int)($r['rating'] ?? 0))), $user['id']]);
+            $sid = (int)$pdo->lastInsertId();
+            foreach ((array)($r['catNames'] ?? []) as $n) {
+                $cid = $ids[mb_strtolower(trim((string)$n))] ?? null;
+                if ($cid) $insSc->execute([$sid, $cid]);
+            }
+            $added++;
+        }
+        $pdo->commit();
+        json_out(['added' => $added]);
 
     case 'export_csv':
         $cats = array_column(load_categories(), 'name', 'id');

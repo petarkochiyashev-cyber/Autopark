@@ -169,6 +169,16 @@ mark{background:color-mix(in srgb,var(--hero-glow) 35%,transparent);color:inheri
 @media (max-width:640px){.grid.list .thumb{width:110px}}
 @media (prefers-reduced-motion:reduce){.enter,.face{animation:none;transition:none}.glare{display:none}}
 
+.paste{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:10px 12px}
+.paste summary{cursor:pointer;font-weight:600;font-size:14px}
+.paste[open]{display:flex;flex-direction:column;gap:10px}
+.paste textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--bg);color:var(--fg);font:inherit;font-size:15px;resize:vertical}
+.imp-cols{display:flex;flex-direction:column;gap:8px}
+.imp-col{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:8px 10px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.imp-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.imp-h b{overflow-wrap:anywhere;min-width:0}
+.imp-h select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px;max-width:100%}
+.imp-s{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
 /* sheet */
 .overlay{position:fixed;inset:0;background:rgba(6,12,9,.5);backdrop-filter:blur(3px);z-index:20;display:flex;justify-content:flex-end}
 .sheet{background:var(--bg);width:min(640px,100%);height:100%;overflow-y:auto;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px);box-shadow:var(--shadow-hi);animation:slide .22s ease-out}
@@ -238,6 +248,7 @@ label.f textarea{min-height:70px;resize:vertical}
     <div class="logo"><span class="logo-mark" aria-hidden="true">Д</span><span class="logo-t">Доставчици<small>картотека визитки</small></span></div>
     <button class="btn on-dark" id="manageBtn" type="button">Категории</button>
     <button class="btn on-dark" id="exportBtn" type="button" hidden>Експорт CSV</button>
+    <button class="btn on-dark" id="importBtn" type="button" hidden>Импорт</button>
     <button class="btn glow" id="addBtn" type="button">+ Нова визитка</button>
   </div>
   <div class="hero-row">
@@ -303,7 +314,7 @@ async function boot(){
   if(!window.claude?.use){notice("Отворете страницата в claude.ai, за да се зареди базата с доставчици.");$("#grid").innerHTML="";$("#count").textContent="";return}
   [db,assets,sample,downloads]=await Promise.all(["db","assets","sample","downloads"].map(n=>claude.use(n).catch(()=>null)));
   if(sample){try{canImages=!!(await sample.limits()).images}catch{canImages=false}}
-  $("#exportBtn").hidden=!downloads;
+  $("#exportBtn").hidden=!downloads;$("#importBtn").hidden=!db;
   if(!db){notice("Базата не е достъпна. Влезте в профила си в claude.ai и презаредете.");$("#grid").innerHTML="";$("#count").textContent="";render();return}
   const timer=setTimeout(()=>{if(!loaded)notice("Базата отговаря бавно. Данните ще се появят, щом се заредят.")},10000);
   db.collection("categories").onSnapshot(s=>{categories=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>notice("Категориите не се заредиха: "+e.message));
@@ -473,6 +484,7 @@ function openEditor(s){
       <input type="file" id="file" accept="image/*" hidden>
     </div>
     <div class="ai" id="aiBox" ${sample&&canImages?"":"hidden"}><p>Снимайте визитката и натиснете бутона: полетата ще се попълнят автоматично. Проверете ги преди запис.</p><button class="btn primary" type="button" id="readBtn">Разчети визитката</button></div>
+<details class="paste" id="pasteBox"><summary>Постави текст и разпредели по графите</summary><textarea id="pasteText" placeholder="Поставете подпис от имейл, текст от сайт или съобщение…"></textarea><div class="row"><button class="btn primary" type="button" id="pasteBtn">Разпредели по графите</button><span class="count" id="pasteHint"></span></div></details>
     <fieldset id="fs">${FIELDS.map(([k,l,cls,ta])=>`<label class="f ${cls||""}" for="f_${k}">${l}${ta?`<textarea id="f_${k}">${esc(s[k])}</textarea>`:`<input id="f_${k}" value="${esc(s[k])}">`}</label>`).join("")}</fieldset>
     <div class="picker" id="picker"></div>
     <div class="row"><span class="count">Оценка:</span><div class="stars" id="stars"></div><label class="row" for="f_fav" style="margin-left:auto"><input type="checkbox" id="f_fav" ${s.fav?"checked":""}> Любим</label></div>
@@ -492,6 +504,7 @@ function openEditor(s){
   let rating=s.rating||0;const drawStars=()=>{$("#stars").innerHTML=[1,2,3,4,5].map(i=>`<button type="button" data-r="${i}" class="${i<=rating?"on":""}" aria-label="${i} звезди">★</button>`).join("")};
   drawStars();$("#stars").onclick=e=>{const r=e.target.closest("[data-r]");if(r){rating=+r.dataset.r===rating?0:+r.dataset.r;drawStars()}};
   $("#cancelBtn").onclick=closeSheet;
+  wirePaste(sel,drawPicker);
 
   $("#readBtn")&&($("#readBtn").onclick=async()=>{
     const imgs=[ph.front.blob,ph.back.blob].filter(Boolean);
@@ -555,6 +568,215 @@ async function exportCsv(){
   const csv="﻿"+[cols.map(c=>q(c[1])).join(";"),...rows].join("\r\n");
   try{await downloads.save({filename:"dostavchici.csv",data:new Blob([csv],{type:"text/csv"})})}catch(e){if(e?.code!=="declined")toast("Файлът не се запази")}
 }
+
+const BACKEND={
+  canAI:()=>!!sample,
+  parseText(text){const catList=categories.map(c=>`- ${c.id}: ${c.name} (${GROUPS[c.group]})`).join("\n");return sample.json(PARSE_TEXT_PROMPT(text,catList),{modelTier:"default"})},
+  async importRows(rows,newCats,group,progress){
+    if(!db)throw new Error("базата не е достъпна");
+    const ids={};for(const c of categories)ids[c.name.trim().toLowerCase()]=c.id;
+    for(const name of newCats){const ref=await db.collection("categories").add({name,group,order:Date.now()});ids[name.toLowerCase()]=ref.id}
+    const now=Date.now();let done=0;
+    for(let i=0;i<rows.length;i+=8){
+      await Promise.all(rows.slice(i,i+8).map(({catNames,...d},j)=>db.collection("suppliers").add({...d,categories:[...new Set(catNames.map(n=>ids[n.toLowerCase()]).filter(Boolean))],fav:false,front:null,back:null,createdAt:now+i+j,updatedAt:now+i+j})));
+      done=Math.min(rows.length,i+8);progress(done);
+    }
+    return done;
+  },
+};
+/* ---------- paste text -> fields ---------- */
+const CITIES=["София","Пловдив","Варна","Бургас","Русе","Стара Загора","Плевен","Сливен","Добрич","Шумен","Перник","Хасково","Ямбол","Пазарджик","Благоевград","Велико Търново","Враца","Габрово","Асеновград","Видин","Казанлък","Кюстендил","Кърджали","Монтана","Димитровград","Ловеч","Силистра","Търговище","Дупница","Свищов","Смолян","Петрич","Самоков","Сандански","Севлиево","Лом","Карлово","Троян","Нова Загора","Велинград","Горна Оряховица","Айтос","Ботевград","Гоце Делчев","Панагюрище","Харманли","Карнобат","Свиленград","Чирпан","Попово","Раковски","Пещера","Първомай","Елин Пелин","Костинброд","Бяла Слатина","Нови пазар","Козлодуй","Радомир","Своге","Девня","Провадия","Поморие","Несебър","Созопол","Приморско","Царево","Балчик","Каварна","Сопот","Хисаря","Стамболийски","Кричим","Перущица","Съединение","Брезово","Раднево","Гълъбово","Мездра","Оряхово","Луковит","Тетевен","Етрополе","Правец","Ихтиман","Костенец","Долна баня","Банско","Разлог","Симитли","Кресна"];
+/* Best-effort parser used when Claude is not available: finds e-mails, phones, web site, ЕИК, city,
+   a company line (ООД, ЕООД, АД…), an address line and a name-looking line. */
+function localParse(text){
+  const out={company:"",person:"",position:"",phones:"",emails:"",website:"",address:"",city:"",eik:"",products:"",categoryIds:[]};
+  let t=String(text||"").replace(/\r/g,"");
+  const emails=[...new Set((t.match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g)||[]).map(e=>e.toLowerCase()))];
+  out.emails=emails.join(", ");
+  const eikM=t.match(/(?:ЕИК|БУЛСТАТ|EIK|ИН по ДДС|ДДС\s*(?:№|N|No)?|VAT(?:\s*No)?|ИН)\s*[:№]?\s*((?:BG)?\s?\d{9}(?:\d{4})?)/i)||t.match(/\b(BG\s?\d{9}(?:\d{4})?)\b/i);
+  if(eikM)out.eik=eikM[1].replace(/\s/g,"").toUpperCase();
+  const noEmail=t.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g," ");
+  const web=noEmail.match(/\b(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:bg|com|eu|net|org|info|biz|de|ro|gr|tr|it|pl|cz|at|uk|io|co)\b(?:\/[^\s,;]*)?/i);
+  if(web)out.website=web[0].replace(/^https?:\/\//i,"").replace(/\/$/,"");
+  else{const dom=emails.map(e=>e.split("@")[1]).find(d=>!/^(gmail|abv|yahoo|mail|dir|outlook|hotmail|live|icloud|me|gbg|data|bitex|yandex|proton|protonmail)\./i.test(d));if(dom)out.website=dom}
+  const eikDigits=out.eik.replace(/\D/g,"");
+  const phones=(noEmail.match(/(?:\+|00)?\d[\d\s().\/-]{6,}\d/g)||[]).map(p=>p.trim()).filter(p=>{const d=p.replace(/\D/g,"");return d.length>=7&&d.length<=15&&d!==eikDigits&&!eikDigits.endsWith(d)&&!/^\d{1,2}[.\/]\d{1,2}[.\/]\d{2,4}$/.test(p)});
+  out.phones=[...new Set(phones)].join(", ");
+  const lines=t.split(/\n|\s{3,}|\s[|–—-]\s|[,;]\s+/).map(l=>l.trim().replace(/^(поздрави|с уважение|regards|best regards)[,!.]?$/i,"")).filter(Boolean);
+  const cityHit=t.match(/(?:гр\.|град|с\.)\s*([А-ЯA-Z][а-яa-z]+(?:\s[А-ЯA-Z][а-яa-z]+)?)/);
+  if(cityHit)out.city=cityHit[1];else{const c=CITIES.find(c=>new RegExp("(^|[^А-Яа-я])"+c+"([^А-Яа-я]|$)").test(t));if(c)out.city=c}
+  const isCompany=l=>/(^|\s|„|")(ЕООД|ООД|ЕАД|АД|ЕТ|СД|КД|ДЗЗД|Ltd\.?|LTD|GmbH|LLC|S\.?A\.?|s\.r\.o\.|SRL|Inc\.?)(\s|$|[",.])/i.test(l);
+  const comp=lines.find(isCompany);if(comp)out.company=comp.replace(/^(фирма|company|доставчик)\s*[:-]\s*/i,"").slice(0,200);
+  const addr=lines.find(l=>/(^|\s)(ул\.|бул\.|ж\.?к\.|кв\.|пл\.|промишлена зона|индустриална зона|street|str\.|адрес)/i.test(l));
+  if(addr)out.address=addr.replace(/^адрес\s*[:-]\s*/i,"").slice(0,200);
+  const clean=l=>!/\d/.test(l)&&!/@/.test(l)&&!isCompany(l)&&l!==out.address;
+  const name=lines.find(l=>clean(l)&&/^[А-ЯA-Z][а-яa-z]+(?:\s[А-ЯA-Z][а-яa-z.]+){1,2}$/.test(l)&&!CITIES.includes(l));
+  if(name)out.person=name;
+  const roleRe=/(управител|мениджър|директор|търговски|представител|консултант|специалист|продажби|собственик|офис|счетоводител|manager|director|sales|owner|engineer|инженер)/i;
+  const role=lines.find(l=>roleRe.test(l)&&clean(l)&&l!==out.person);if(role)out.position=role.slice(0,120);
+  return out;
+}
+function fillFromCard(r,sel,drawPicker){
+  let n=0;
+  for(const [k] of FIELDS){const v=r?.[k];const el=$("#f_"+k);if(el&&typeof v==="string"&&v.trim()&&!el.value.trim()){el.value=v.trim();el.classList.remove("hl");void el.offsetWidth;el.classList.add("hl");n++}}
+  if(Array.isArray(r?.categoryIds))r.categoryIds.forEach(id=>{if(catById(String(id))){if(!sel.has(String(id)))n++;sel.add(String(id))}});
+  drawPicker();return n;
+}
+function wirePaste(sel,drawPicker){
+  const btn=$("#pasteBtn");if(!btn)return;
+  $("#pasteHint").textContent=BACKEND.canAI()?"Claude разпределя текста по графите.":"Разпознават се имейли, телефони, сайт, ЕИК, град, фирма и адрес.";
+  btn.onclick=async()=>{
+    const t=$("#pasteText").value.trim();
+    if(!t){toast("Първо поставете текст");$("#pasteText").focus();return}
+    btn.disabled=true;btn.innerHTML=`<span class="spin"></span> Разпределям…`;
+    let r=null,note="";
+    if(BACKEND.canAI()){try{r=await BACKEND.parseText(t)}catch(e){note=" (Claude не отговори, ползвах вграденото разпознаване)"}}
+    if(!r)r=localParse(t);
+    const n=fillFromCard(r,sel,drawPicker);
+    toast(n?`Попълнени ${n} полета – проверете ги${note}`:`Не открих нови данни. Попълнените полета не се променят${note}.`);
+    btn.disabled=false;btn.textContent="Разпредели по графите";
+  };
+}
+const PARSE_TEXT_PROMPT=(text,catList)=>`Текстът по-долу съдържа данни за един доставчик: подпис от имейл, визитка, текст от сайт или съобщение. Разпредели данните по полетата и върни САМО JSON обект с ключове:
+company, person, position, phones (низ, няколко телефона разделени със запетая), emails (низ, разделени със запетая), website, address (улица и номер), city, eik (ЕИК/ДДС номер ако има), products (кратко какво предлагат, на български, ако личи), categoryIds (масив с id-та от списъка с категории, които подхождат; празен масив ако не личи).
+Липсващите полета остави празен низ. Не измисляй данни.
+Категории:
+${catList||"(няма)"}
+
+Текст:
+"""
+${text.slice(0,20000)}
+"""`;
+
+/* ---------- import from Excel / CSV ---------- */
+const IMPORT_FIELDS=[["","— пропусни —"],["company","Фирма"],["person","Лице за контакт"],["position","Длъжност"],["phones","Телефони"],["emails","Имейли"],["website","Сайт"],["address","Адрес"],["city","Град"],["eik","ЕИК"],["products","Предлага"],["notes","Бележки"],["categories","Категории"],["rating","Оценка"]];
+const SYN={
+  emails:["имейл","имейли","имейладрес","email","emails","emailaddress","mail","поща","емайл","електроннапоща"],
+  phones:["телефон","телефони","тел","gsm","мобилен","мобилентелефон","phone","phones","mobile","tel","telephone","факс","fax"],
+  website:["сайт","уебсайт","website","web","www","url","интернетстраница"],
+  company:["фирма","компания","company","доставчик","наименование","организация","firm","supplier","vendor","именафирма","firma","фирмадоставчик","companyname"],
+  person:["лице","контакт","контактнолице","лицезаконтакт","person","contact","contactperson","име","name","представител","имеифамилия","fullname"],
+  position:["длъжност","позиция","position","title","jobtitle","role"],
+  address:["адрес","address","улица","street"],
+  city:["град","city","населеномясто","town","местоположение"],
+  eik:["еик","булстат","eik","ддс","ддсномер","индднс","инподдс","vat","vatnumber","bulstat","uic"],
+  products:["предлага","продукти","products","услуги","асортимент","дейност","стоки","предмет"],
+  notes:["бележки","бележка","notes","note","коментар","забележка","забележки","comments"],
+  categories:["категория","категории","category","categories","вид","тип","група"],
+  rating:["оценка","rating","рейтинг","звезди"],
+};
+const normH=h=>String(h??"").toLowerCase().replace(/[^a-zа-я0-9]/g,"");
+function guessField(h){
+  const n=normH(h);if(!n)return"";
+  for(const [f,l] of Object.entries(SYN))if(l.includes(n))return f;
+  for(const [f,l] of Object.entries(SYN))if(l.some(s=>s.length>=3&&n.startsWith(s)))return f;
+  return"";
+}
+function parseCSV(text){
+  text=text.replace(/^﻿/,"");
+  const first=text.split(/\r?\n/).find(l=>l.trim())||"";
+  const cnt=c=>first.split(c).length-1;
+  const d=["\t",";",","].sort((a,b)=>cnt(b)-cnt(a))[0];
+  const rows=[];let row=[],f="",q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"'&&f==="")q=true;
+    else if(c===d){row.push(f);f=""}
+    else if(c==="\n"||c==="\r"){if(c==="\r"&&text[i+1]==="\n")i++;row.push(f);rows.push(row);row=[];f=""}
+    else f+=c}
+  if(f!==""||row.length){row.push(f);rows.push(row)}
+  return rows.filter(r=>r.some(x=>String(x).trim()));
+}
+let xlsxLoading=null;
+function loadXLSX(){
+  if(window.XLSX)return Promise.resolve(window.XLSX);
+  return xlsxLoading??=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=()=>res(window.XLSX);s.onerror=()=>{xlsxLoading=null;rej(new Error("библиотеката за Excel не се зареди"))};document.head.append(s)});
+}
+async function readTable(file){
+  if(/\.(xlsx|xlsm|xls|ods)$/i.test(file.name)){
+    const X=await loadXLSX();const wb=X.read(await file.arrayBuffer(),{type:"array"});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    return X.utils.sheet_to_json(ws,{header:1,raw:false,defval:""}).map(r=>r.map(v=>String(v??""))).filter(r=>r.some(x=>x.trim()));
+  }
+  const buf=await file.arrayBuffer();
+  let text=new TextDecoder("utf-8").decode(buf);
+  if(text.includes("\uFFFD")){try{text=new TextDecoder("windows-1251").decode(buf)}catch{}}
+  return parseCSV(text);
+}
+function openImport(){
+  const b=sheet("Импорт от Excel / CSV",`
+    <p class="count" style="margin:0">Изберете файл <b>.xlsx</b>, <b>.xls</b> или <b>.csv</b>, или поставете таблица, копирана от Excel. Всеки ред става доставчик, а колоните се разпознават по заглавията им.</p>
+    <label class="f" for="impFile">Файл<input id="impFile" type="file" accept=".xlsx,.xls,.xlsm,.ods,.csv,.txt,text/csv"></label>
+    <details class="paste"><summary>Или поставете таблица</summary><textarea id="impPaste" placeholder="Копирайте клетките в Excel (със заглавния ред) и ги поставете тук"></textarea><button class="btn" type="button" id="impPasteBtn">Прочети таблицата</button></details>
+    <div id="impStep2"></div>`);
+  let data=[];
+  const step2=()=>{
+    if(!data.length){$("#impStep2").innerHTML=`<p class="notice">Не открих редове с данни.</p>`;return}
+    const width=Math.max(...data.map(r=>r.length));
+    const guesses=Array.from({length:width},(_,i)=>guessField(data[0][i]));
+    let header=guesses.some(Boolean);
+    const map=header?guesses:Array(width).fill("");
+    const draw=()=>{
+      const body=header?data.slice(1):data;
+      $("#impStep2").innerHTML=`
+        <label class="row" for="impHeader"><input type="checkbox" id="impHeader" ${header?"checked":""}> Първият ред е заглавен</label>
+        <div class="imp-cols">${Array.from({length:width},(_,i)=>{const samples=body.map(r=>r[i]).filter(v=>v&&String(v).trim()).slice(0,3);
+          return `<div class="imp-col"><div class="imp-h"><b>${esc(header?(data[0][i]||"Колона "+(i+1)):"Колона "+(i+1))}</b><select data-col="${i}" aria-label="Графа за колона ${i+1}">${IMPORT_FIELDS.map(([v,l])=>`<option value="${v}" ${map[i]===v?"selected":""}>${l}</option>`).join("")}</select></div><div class="imp-s">${samples.map(esc).join(" · ")||"<i>празна</i>"}</div></div>`}).join("")}</div>
+        <div class="row"><label class="row" for="impDup"><input type="checkbox" id="impDup" checked> Пропусни вече въведените (същ ЕИК или име на фирма)</label></div>
+        <label class="f" for="impGroup" id="impGroupL" hidden>Новите категории от файла да са в<select id="impGroup"><option value="consumables">Консумативи</option><option value="machines">Машини</option><option value="">Не създавай нови категории</option></select></label>
+        <p class="notice" id="impSum"></p>
+        <div class="row"><button class="btn primary" type="button" id="impGo">Импортирай</button><span class="count" id="impProg"></span></div>`;
+      $("#impHeader").onchange=e=>{header=e.target.checked;if(header)guesses.forEach((g,i)=>{if(g&&!map[i])map[i]=g});draw()};
+      $("#impStep2").querySelectorAll("select[data-col]").forEach(s=>s.onchange=()=>{map[+s.dataset.col]=s.value;summary()});
+      $("#impDup").onchange=summary;$("#impGroup").onchange=summary;
+      $("#impGo").onclick=go;summary();
+    };
+    const build=()=>{
+      const body=header?data.slice(1):data;
+      const seenEik=new Set(suppliers.map(s=>String(s.eik||"").replace(/\D/g,"")).filter(d=>d.length>=6));
+      const seenCo=new Set(suppliers.map(s=>String(s.company||"").trim().toLowerCase()).filter(Boolean));
+      const dupOn=$("#impDup")?.checked??true;
+      const known=new Set(categories.map(c=>c.name.trim().toLowerCase()));
+      const rows=[],newCats=new Map();let dups=0,empty=0;
+      for(const r of body){
+        const o={company:"",person:"",position:"",phones:"",emails:"",website:"",address:"",city:"",eik:"",products:"",notes:"",rating:0,catNames:[]};
+        map.forEach((f,i)=>{const v=String(r[i]??"").trim();if(!f||!v)return;
+          if(f==="categories")o.catNames.push(...v.split(/[;,\/|]/).map(x=>x.trim()).filter(Boolean));
+          else if(f==="rating"){const m=v.match(/\d/);o.rating=Math.max(0,Math.min(5,m?+m[0]:(v.match(/★/g)||[]).length))}
+          else o[f]=o[f]?o[f]+", "+v:v});
+        if(!o.company&&!o.person){empty++;continue}
+        const d=o.eik.replace(/\D/g,""),co=o.company.toLowerCase();
+        if(dupOn&&((d.length>=6&&seenEik.has(d))||(co&&seenCo.has(co)))){dups++;continue}
+        if(d.length>=6)seenEik.add(d);if(co)seenCo.add(co);
+        o.catNames.forEach(n=>{if(!known.has(n.toLowerCase()))newCats.set(n.toLowerCase(),n)});
+        rows.push(o);
+      }
+      return {rows,dups,empty,newCats:[...newCats.values()]};
+    };
+    const summary=()=>{
+      const {rows,dups,empty,newCats}=build();
+      const g=$("#impGroup");$("#impGroupL").hidden=!newCats.length;
+      const mapped=new Set(map.filter(Boolean));
+      $("#impSum").innerHTML=(!mapped.has("company")&&!mapped.has("person")?"<b>Изберете поне една колона за „Фирма“ или „Лице за контакт“.</b><br>":"")+
+        `Ще ${rows.length===1?"бъде добавен":"бъдат добавени"} <b>${rows.length}</b> ${rows.length===1?"доставчик":"доставчика"}.`+(dups?(dups===1?" 1 вече е въведен и ще бъде пропуснат.":` ${dups} вече са въведени и ще бъдат пропуснати.`):"")+(empty?(empty===1?" 1 ред без фирма и лице ще бъде пропуснат.":` ${empty} реда без фирма и лице ще бъдат пропуснати.`):"")+
+        (newCats.length?`<br>Нови категории${g.value?"":" (няма да се създадат)"}: ${newCats.map(esc).join(", ")}.`:"");
+      $("#impGo").disabled=!rows.length;$("#impGo").textContent=rows.length?`Импортирай ${rows.length}`:"Импортирай";
+    };
+    const go=async()=>{
+      const {rows,newCats}=build();const group=$("#impGroup").value;
+      const btn=$("#impGo");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> Импортирам…`;
+      try{const added=await BACKEND.importRows(rows,group?newCats:[],group||"consumables",n=>{$("#impProg").textContent=`${n} от ${rows.length}`});
+        closeSheet();toast(added===1?"Добавен 1 доставчик":`Добавени ${added} доставчика`);filter="__all";render()}
+      catch(e){toast("Импортът спря: "+e.message+". Вече добавените остават.");btn.disabled=false;btn.textContent="Опитай отново"}
+    };
+    draw();
+  };
+  $("#impFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;
+    $("#impStep2").innerHTML=`<span class="count"><span class="spin"></span> Чета файла…</span>`;
+    try{data=await readTable(f);step2()}catch(err){$("#impStep2").innerHTML=`<p class="notice">Файлът не се прочете: ${esc(err.message)}</p>`}};
+  $("#impPasteBtn").onclick=()=>{data=parseCSV($("#impPaste").value);step2()};
+}
+$("#importBtn").addEventListener("click",openImport);
 
 render();boot();
 </script>
