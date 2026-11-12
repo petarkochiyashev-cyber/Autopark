@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS categories (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(190) NOT NULL,
-  grp ENUM('machines','consumables') NOT NULL,
+  grp VARCHAR(40) NOT NULL,
   sort_order INT NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS suppliers (
   eik VARCHAR(40) NOT NULL DEFAULT '',
   products TEXT NULL,
   notes TEXT NULL,
+  extra TEXT NULL,
   rating TINYINT UNSIGNED NOT NULL DEFAULT 0,
   fav TINYINT(1) NOT NULL DEFAULT 0,
   front VARCHAR(80) NULL,
@@ -51,4 +52,9 @@ CREATE TABLE IF NOT EXISTS login_attempts (
   ip VARCHAR(45) NOT NULL,
   attempted_at DATETIME NOT NULL,
   KEY idx_ip_time (ip, attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS settings (
+  k VARCHAR(40) PRIMARY KEY,
+  v MEDIUMTEXT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

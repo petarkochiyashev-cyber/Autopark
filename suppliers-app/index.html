@@ -57,7 +57,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .search input{border:0;background:transparent;padding:14px 0;width:100%;min-width:0;outline:none;color:var(--hero-fg);font-size:16px}
 .search input::placeholder{color:var(--hero-muted)}
 .search kbd{font-family:var(--f-mono);font-size:11px;color:var(--hero-muted);border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:1px 6px}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.10);border-radius:14px;overflow:hidden}
+.stats{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:1px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.10);border-radius:14px;overflow:hidden}
 .stat{background:rgba(8,16,12,.55);padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;border:0;cursor:pointer;color:inherit}
 .stat:hover{background:rgba(8,16,12,.35)}
 .stat b{font-family:var(--f-display);font-weight:600;font-size:24px;font-variant-numeric:tabular-nums;line-height:1.1}
@@ -179,6 +179,20 @@ mark{background:color-mix(in srgb,var(--hero-glow) 35%,transparent);color:inheri
 .imp-h b{overflow-wrap:anywhere;min-width:0}
 .imp-h select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px;max-width:100%}
 .imp-s{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:12px}
+.tabs button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:500}
+.tabs button[aria-selected="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.set-list{display:flex;flex-direction:column;gap:8px}
+.set-h{margin:10px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;align-items:center;gap:6px}
+.set-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.set-row.cust{grid-template-columns:minmax(0,1fr) 170px auto}
+.set-row.grp{grid-template-columns:auto minmax(0,1fr) 130px auto}
+.set-row .opts,.set-row .full-row{grid-column:1/-1}
+.set-row input:not([type=checkbox]),.set-row select{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-width:0;width:100%}
+label.f>span{font-size:11.5px;color:var(--muted);font-weight:400}
+.cat-list[data-g] .cat.on{background:var(--gc);border-color:var(--gc);color:var(--surface)}
+.mono-tile.g-none{--tile-a:#3c4a43;--tile-b:#1d2722}
+@media (max-width:640px){.set-row.cust{grid-template-columns:minmax(0,1fr) auto}.set-row.cust select{grid-column:1}.set-row.grp{grid-template-columns:auto minmax(0,1fr) auto}.set-row.grp select{grid-column:2}}
 /* sheet */
 .overlay{position:fixed;inset:0;background:rgba(6,12,9,.5);backdrop-filter:blur(3px);z-index:20;display:flex;justify-content:flex-end}
 .sheet{background:var(--bg);width:min(640px,100%);height:100%;overflow-y:auto;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px);box-shadow:var(--shadow-hi);animation:slide .22s ease-out}
@@ -245,31 +259,25 @@ label.f textarea{min-height:70px;resize:vertical}
 
 <header class="hero"><div class="gut">
   <div class="nav">
-    <div class="logo"><span class="logo-mark" aria-hidden="true">Д</span><span class="logo-t">Доставчици<small>картотека визитки</small></span></div>
-    <button class="btn on-dark" id="manageBtn" type="button">Категории</button>
+    <div class="logo"><span class="logo-mark" aria-hidden="true" id="logoMark">Д</span><span class="logo-t" id="logoT">Доставчици<small>картотека визитки</small></span></div>
+    <button class="btn on-dark" id="manageBtn" type="button">Настройки</button>
     <button class="btn on-dark" id="exportBtn" type="button" hidden>Експорт CSV</button>
     <button class="btn on-dark" id="importBtn" type="button" hidden>Импорт</button>
     <button class="btn glow" id="addBtn" type="button">+ Нова визитка</button>
   </div>
   <div class="hero-row">
     <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
-      <h1>Всеки доставчик. <em>Една снимка</em> разстояние.</h1>
+      <h1 id="headline">Всеки доставчик. <em>Една снимка</em> разстояние.</h1>
       <label class="search" for="q"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Фирма, човек, ЕИК, телефон, град, продукт…" autocomplete="off"><kbd>/</kbd></label>
     </div>
-    <div class="stats" id="stats">
-      <button class="stat" type="button" data-cat="__all"><b id="sTotal">–</b><span>Доставчици</span></button>
-      <button class="stat" type="button" data-jump="machines"><b id="sMach">–</b><span><i style="background:#5b93d6"></i>Машини</span></button>
-      <button class="stat" type="button" data-jump="consumables"><b id="sCons">–</b><span><i style="background:#e19a4c"></i>Консумативи</span></button>
-      <button class="stat" type="button" data-cat="__fav"><b id="sFav">–</b><span>★ Любими</span></button>
-    </div>
+    <div class="stats" id="stats"></div>
   </div>
 </div></header>
 
 <div class="gut content">
   <nav class="rail" id="rail" aria-label="Категории">
     <div class="rail-row"><span class="rail-lbl">Изглед</span><div class="cat-list"><button class="cat on" data-cat="__all" type="button">Всички <span class="n" id="nAll">0</span></button><button class="cat" data-cat="__fav" type="button">★ Любими <span class="n" id="nFav">0</span></button><button class="cat" data-cat="__none" type="button">Без категория <span class="n" id="nNone">0</span></button></div></div>
-    <div class="rail-row" id="rowMachines"><span class="rail-lbl"><span class="dot" style="background:var(--mach)"></span>Машини</span><div class="cat-list" data-g="machines" id="catMachines"></div></div>
-    <div class="rail-row" id="rowCons"><span class="rail-lbl"><span class="dot" style="background:var(--cons)"></span>Консумативи</span><div class="cat-list" data-g="consumables" id="catCons"></div></div>
+    <div id="groupRows" style="display:contents"></div>
   </nav>
   <main class="main">
     <div id="notice" class="notice" hidden></div>
@@ -285,7 +293,7 @@ label.f textarea{min-height:70px;resize:vertical}
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const GROUPS={machines:"Машини",consumables:"Консумативи"};
+let GROUPS={machines:"Машини",consumables:"Консумативи"};
 let db=null,assets=null,sample=null,downloads=null,canImages=false;
 let suppliers=[],categories=[],filter="__all",loaded=false,lastKey="",view="grid",city="";
 /* Cities compare without case, spaces or a "гр." prefix, so "гр. Пловдив" and "пловдив" are one city. */
@@ -318,11 +326,12 @@ async function boot(){
   if(!db){notice("Базата не е достъпна. Влезте в профила си в claude.ai и презаредете.");$("#grid").innerHTML="";$("#count").textContent="";render();return}
   const timer=setTimeout(()=>{if(!loaded)notice("Базата отговаря бавно. Данните ще се появят, щом се заредят.")},10000);
   db.collection("categories").onSnapshot(s=>{categories=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>notice("Категориите не се заредиха: "+e.message));
+  db.doc("settings/app").onSnapshot(d=>{setSettings(d.exists?d.data():null);render()},()=>{});
   db.collection("suppliers").onSnapshot(s=>{loaded=true;clearTimeout(timer);notice("");suppliers=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{clearTimeout(timer);notice("Доставчиците не се заредиха: "+e.message)});
 }
 
 function hay(s){const cats=(s.categories||[]).map(id=>catById(id)?.name||"").join(" ");
-  return [s.company,s.person,s.position,s.phones,s.emails,s.website,s.address,s.city,s.eik,s.notes,s.products,cats].join(" ").toLowerCase()}
+  return [s.company,s.person,s.position,s.phones,s.emails,s.website,s.address,s.city,s.eik,s.notes,s.products,cats,extraText(s)].join(" ").toLowerCase()}
 /* Search terms: digit runs (ЕИК, ДДС №, телефон) are joined and compared digits-only, so "BG 123 456 789", "123456789" and "456 78" all find the same ЕИК. */
 const digits=v=>String(v||"").replace(/\D/g,"");
 function terms(q){const nums=[],words=[];
@@ -348,19 +357,22 @@ function visible(){
   list.sort((a,b)=>k==="new"?(b.createdAt||0)-(a.createdAt||0)||byName(a,b):k==="old"?(a.createdAt||Infinity)-(b.createdAt||Infinity)||byName(a,b):k==="rating"?(b.rating||0)-(a.rating||0)||String(a.company).localeCompare(b.company,"bg"):String(a.company||a.person).localeCompare(b.company||b.person,"bg"));
   return list;
 }
-function tagsHtml(ids){return (ids||[]).map(catById).filter(Boolean).map(c=>`<span class="tag ${c.group}">${esc(c.name)}</span>`).join("")}
+function tagsHtml(ids){return (ids||[]).map(catById).filter(Boolean).map(c=>`<span class="tag g-${catGroup(c)}">${esc(c.name)}</span>`).join("")}
 
 function render(){
   const count=id=>suppliers.filter(s=>(s.categories||[]).includes(id)).length;
   const catBtn=c=>`<button class="cat${filter===c.id?" on":""}" data-cat="${c.id}" type="button">${esc(c.name)} <span class="n">${count(c.id)}</span></button>`;
-  $("#catMachines").innerHTML=sortCats(categories.filter(c=>c.group==="machines")).map(catBtn).join("")||`<span class="count">Няма категории</span>`;
-  $("#catCons").innerHTML=sortCats(categories.filter(c=>c.group==="consumables")).map(catBtn).join("")||`<span class="count">Няма категории</span>`;
+  $("#groupRows").innerHTML=SETTINGS.groups.map(g=>`<div class="rail-row" id="row-${g.id}"><span class="rail-lbl"><span class="dot" style="background:var(--g-${g.id})"></span>${esc(g.name)}</span><div class="cat-list" data-g="${g.id}" style="--gc:var(--g-${g.id})">${sortCats(categories.filter(c=>catGroup(c)===g.id)).map(catBtn).join("")||`<span class="count">Няма категории</span>`}</div></div>`).join("");
   document.querySelectorAll(".rail [data-cat^='__']").forEach(b=>b.classList.toggle("on",b.dataset.cat===filter));
   $("#nAll").textContent=suppliers.length;$("#nFav").textContent=suppliers.filter(s=>s.fav).length;
   $("#nNone").textContent=suppliers.filter(s=>!(s.categories||[]).some(id=>catById(id))).length;
-  const groupOf=s=>{const g=(s.categories||[]).map(catById).filter(Boolean).map(c=>c.group);return g[0]||"none"};
-  const inGroup=g=>suppliers.filter(s=>(s.categories||[]).some(id=>catById(id)?.group===g)).length;
-  if(loaded){countTo("#sTotal",suppliers.length);countTo("#sMach",inGroup("machines"));countTo("#sCons",inGroup("consumables"));countTo("#sFav",suppliers.filter(s=>s.fav).length)}
+  const groupOf=s=>{const g=(s.categories||[]).map(catById).filter(Boolean).map(catGroup);return g[0]||"none"};
+  const inGroup=g=>suppliers.filter(s=>(s.categories||[]).some(id=>{const c=catById(id);return !!c&&catGroup(c)===g})).length;
+  const sig=SETTINGS.groups.map(g=>g.id+"|"+g.name).join("/"),st=$("#stats");
+  if(st.dataset.sig!==sig){st.dataset.sig=sig;const n=SETTINGS.groups.length+2;st.style.setProperty("--cols",n<=4?n:Math.ceil(n/2));
+    st.innerHTML=`<button class="stat" type="button" data-cat="__all"><b id="s-__all">–</b><span>Доставчици</span></button>`+SETTINGS.groups.map(g=>`<button class="stat" type="button" data-jump="${g.id}"><b id="s-${g.id}">–</b><span><i style="background:var(--g-${g.id})"></i>${esc(g.name)}</span></button>`).join("")+`<button class="stat" type="button" data-cat="__fav"><b id="s-__fav">–</b><span>★ Любими</span></button>`;
+    for(const k of Object.keys(shown))if(k.startsWith("#s-"))delete shown[k]}
+  if(loaded){countTo("#s-__all",suppliers.length);SETTINGS.groups.forEach(g=>countTo("#s-"+g.id,inGroup(g.id)));countTo("#s-__fav",suppliers.filter(s=>s.fav).length)}
   document.querySelectorAll(".stat[data-cat]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.cat===filter));
   drawCities();
   const list=visible();
@@ -380,10 +392,10 @@ function render(){
   $("#grid").innerHTML=list.map((s,i)=>`<div class="card${animate?" enter":""}" role="button" tabindex="0" data-id="${s.id}" style="--i:${Math.min(i,12)}" aria-label="${esc(s.company||s.person)}">
     <span class="glare"></span>
     <div class="face front">
-      <div class="thumb">${s.front?`<img src="${blobUrl(s.front)}" alt="" loading="lazy">`:`<span class="mono-tile ${groupOf(s)}">${esc(initials(s))}</span>`}
+      <div class="thumb">${s.front?`<img src="${blobUrl(s.front)}" alt="" loading="lazy">`:`<span class="mono-tile g-${groupOf(s)}">${esc(initials(s))}</span>`}
         <div class="qa"><button type="button" class="favb${s.fav?" on":""}" data-act="fav" aria-pressed="${!!s.fav}" aria-label="Любим">${s.fav?"★":"☆"}</button>${(s.phones||s.emails)?`<button type="button" data-act="flip" aria-label="Покажи контактите">↻<span class="qa-t"> Контакти</span></button>`:""}</div></div>
       <div class="body"><div class="co">${H(s.company||"(без име на фирма)")}</div>
-      ${s.person?`<div class="who">${H(s.person)}${s.position?" · "+esc(s.position):""}</div>`:""}
+      ${s.person&&!isHidden("person")?`<div class="who">${H(s.person)}${s.position?" · "+esc(s.position):""}</div>`:""}
       <div class="tags">${tagsHtml(s.categories)}</div>
       ${byDate&&s.createdAt?`<div class="added"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Добавен ${fmtDate(s.createdAt)}</div>`:""}
       <div class="meta"><span class="ph-line">${eikShown(s)?`ЕИК <mark>${esc(s.eik)}</mark>`:s.phones?H(split(s.phones)[0]):(s.city?H(s.city):"")}</span>${s.rating?`<span class="rate" aria-label="${s.rating} от 5">${"★".repeat(s.rating)}</span>`:""}</div></div>
@@ -426,9 +438,9 @@ function drawCities(){
   el.value=city;el.classList.toggle("active",!!city)}
 $("#addBtn").addEventListener("click",()=>openEditor());$("#fab").addEventListener("click",()=>openEditor());
 $("#stats").addEventListener("click",e=>{const b=e.target.closest(".stat");if(!b)return;
-  if(b.dataset.cat){filter=b.dataset.cat;render()}else{const row=$(b.dataset.jump==="machines"?"#rowMachines":"#rowCons");row.scrollIntoView({behavior:"smooth",block:"center"});row.querySelector(".cat")?.focus({preventScroll:true})}});
+  if(b.dataset.cat){filter=b.dataset.cat;render()}else{const row=$("#row-"+b.dataset.jump);if(!row)return;row.scrollIntoView({behavior:"smooth",block:"center"});row.querySelector(".cat")?.focus({preventScroll:true})}});
 document.addEventListener("keydown",e=>{if(e.key==="/"&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)&&!$("#ov")){e.preventDefault();$("#q").focus()}});
-$("#manageBtn").addEventListener("click",openCategories);
+$("#manageBtn").addEventListener("click",()=>openSettings());
 $("#exportBtn").addEventListener("click",exportCsv);
 
 /* ---------- overlay ---------- */
@@ -452,11 +464,12 @@ function openDetail(id){
     ${s.back?`<img class="big-photo" src="${blobUrl(s.back)}" alt="Визитка – гръб">`:""}
     <div class="tags">${tagsHtml(s.categories)}</div>
     <dl class="kv">
-      ${row("Фирма",esc(s.company))}${row("Лице",esc(s.person))}${row("Длъжност",esc(s.position))}
-      ${row("Телефон",lines(s.phones,"tel"))}${row("Имейл",lines(s.emails,"mail"))}${row("Сайт",lines(s.website,"web"))}
-      ${row("Адрес",esc([s.address,s.city].filter(Boolean).join(", ")))}${row("ЕИК",s.eik?`<span class="mono">${esc(s.eik)}</span>`:"")}
-      ${row("Предлага",esc(s.products))}${row("Оценка",s.rating?`<span style="color:var(--star)">${"★".repeat(s.rating)}</span>`:"")}
-      ${row("Бележки",esc(s.notes).replace(/\n/g,"<br>"))}
+      ${["company","person","position"].map(k=>isHidden(k)?"":row(esc(L(k)),esc(s[k]))).join("")}
+      ${isHidden("phones")?"":row(esc(L("phones")),lines(s.phones,"tel"))}${isHidden("emails")?"":row(esc(L("emails")),lines(s.emails,"mail"))}${isHidden("website")?"":row(esc(L("website")),lines(s.website,"web"))}
+      ${row(esc(isHidden("address")?L("city"):L("address")),esc([isHidden("address")?"":s.address,isHidden("city")?"":s.city].filter(Boolean).join(", ")))}${isHidden("eik")?"":row(esc(L("eik")),s.eik?`<span class="mono">${esc(s.eik)}</span>`:"")}
+      ${isHidden("products")?"":row(esc(L("products")),esc(s.products))}${row("Оценка",s.rating?`<span style="color:var(--star)">${"★".repeat(s.rating)}</span>`:"")}
+      ${customFields().map(f=>row(esc(f.label),fmtExtra(f,s.extra?.[f.id]))).join("")}
+      ${isHidden("notes")?"":row(esc(L("notes")),esc(s.notes).replace(/\n/g,"<br>"))}
       ${row("Добавен",s.createdAt?esc(fmtDate(s.createdAt,true)):"")}${row("Променен",s.updatedAt&&s.updatedAt-(s.createdAt||0)>60000?esc(fmtDate(s.updatedAt,true)):"")}
     </dl>`,`<button class="btn" type="button" id="favT">${s.fav?"★ Любим":"☆ Любим"}</button><button class="btn primary" type="button" id="editB">Редактирай</button>`);
   b.addEventListener("click",async e=>{const c=e.target.closest("[data-copy]");if(!c)return;
@@ -472,7 +485,8 @@ async function shrink(file){
     c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
     return await new Promise(res=>c.toBlob(b=>res(b||file),"image/jpeg",.86));}catch{return file}
 }
-const FIELDS=[["company","Фирма","full"],["person","Лице за контакт"],["position","Длъжност"],["phones","Телефони (разделени със запетая)","full"],["emails","Имейли"],["website","Сайт"],["address","Адрес"],["city","Град"],["eik","ЕИК / ДДС №"],["products","Какво предлага","full"],["notes","Бележки","full",true]];
+const BASE_FIELDS=[["company","Фирма","full"],["person","Лице за контакт"],["position","Длъжност"],["phones","Телефони (разделени със запетая)","full"],["emails","Имейли"],["website","Сайт"],["address","Адрес"],["city","Град"],["eik","ЕИК / ДДС №"],["products","Какво предлага","full"],["notes","Бележки","full",true]];
+let FIELDS=BASE_FIELDS;
 
 function openEditor(s){
   const isNew=!s; s=s?{...s}:{categories:[],rating:0,fav:false};
@@ -486,6 +500,7 @@ function openEditor(s){
     <div class="ai" id="aiBox" ${sample&&canImages?"":"hidden"}><p>Снимайте визитката и натиснете бутона: полетата ще се попълнят автоматично. Проверете ги преди запис.</p><button class="btn primary" type="button" id="readBtn">Разчети визитката</button></div>
 <details class="paste" id="pasteBox"><summary>Постави текст и разпредели по графите</summary><textarea id="pasteText" placeholder="Поставете подпис от имейл, текст от сайт или съобщение…"></textarea><div class="row"><button class="btn primary" type="button" id="pasteBtn">Разпредели по графите</button><span class="count" id="pasteHint"></span></div></details>
     <fieldset id="fs">${FIELDS.map(([k,l,cls,ta])=>`<label class="f ${cls||""}" for="f_${k}">${l}${ta?`<textarea id="f_${k}">${esc(s[k])}</textarea>`:`<input id="f_${k}" value="${esc(s[k])}">`}</label>`).join("")}</fieldset>
+    ${customFields().length?`<fieldset id="fsx">${customFields().map(f=>customInput(f,s.extra?.[f.id])).join("")}</fieldset>`:""}
     <div class="picker" id="picker"></div>
     <div class="row"><span class="count">Оценка:</span><div class="stars" id="stars"></div><label class="row" for="f_fav" style="margin-left:auto"><input type="checkbox" id="f_fav" ${s.fav?"checked":""}> Любим</label></div>
     <div class="foot"><div>${isNew?"":`<button class="btn danger" type="button" id="delBtn">Изтрий</button>`}</div><div class="row"><button class="btn" type="button" id="cancelBtn">Отказ</button><button class="btn primary" type="button" id="saveBtn">Запази</button></div></div>`);
@@ -498,7 +513,7 @@ function openEditor(s){
   $("#file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;ph[target].blob=await shrink(f);drawDrop(target)};
   if(!assets){b.querySelector(".photos").insertAdjacentHTML("afterend",`<p class="count">Качването на снимки е достъпно само за редакторите на картотеката.</p>`)}
 
-  const drawPicker=()=>{$("#picker").innerHTML=Object.entries(GROUPS).map(([g,n])=>`<h4>${n}</h4><div class="chips">${sortCats(categories.filter(c=>c.group===g)).map(c=>`<button type="button" class="chip ${g}${sel.has(c.id)?" on":""}" data-c="${c.id}">${esc(c.name)}</button>`).join("")||`<span class="count">Няма категории – добавете от „Категории…“</span>`}</div>`).join("")};
+  const drawPicker=()=>{$("#picker").innerHTML=Object.entries(GROUPS).map(([g,n])=>`<h4>${n}</h4><div class="chips">${sortCats(categories.filter(c=>catGroup(c)===g)).map(c=>`<button type="button" class="chip g-${g}${sel.has(c.id)?" on":""}" data-c="${c.id}">${esc(c.name)}</button>`).join("")||`<span class="count">Няма категории – добавете от „Настройки“</span>`}</div>`).join("")};
   drawPicker();
   $("#picker").onclick=e=>{const c=e.target.closest("[data-c]");if(!c)return;sel.has(c.dataset.c)?sel.delete(c.dataset.c):sel.add(c.dataset.c);drawPicker()};
   let rating=s.rating||0;const drawStars=()=>{$("#stars").innerHTML=[1,2,3,4,5].map(i=>`<button type="button" data-r="${i}" class="${i<=rating?"on":""}" aria-label="${i} звезди">★</button>`).join("")};
@@ -529,7 +544,7 @@ ${catList||"(няма)"}`,{images:imgs,modelTier:"default"});
   async function del(){try{await db.collection("suppliers").doc(s.id).delete();for(const k of["front","back"])if(s[k]&&assets)assets.delete(s[k]).catch(()=>{});closeSheet();toast("Изтрито")}catch(e){toast("Не се изтри: "+e.message)}}
 
   $("#saveBtn").onclick=async()=>{
-    const data={};for(const [k] of FIELDS)data[k]=$("#f_"+k).value.trim();
+    const data={};for(const [k] of BASE_FIELDS){const el=$("#f_"+k);data[k]=el?el.value.trim():String(s[k]??"")}data.extra=readExtra(s.extra);
     if(!data.company&&!data.person){toast("Попълнете поне фирма или лице за контакт");$("#f_company").focus();return}
     const btn=$("#saveBtn");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> Записвам…`;
     try{
@@ -545,32 +560,186 @@ ${catList||"(няма)"}`,{images:imgs,modelTier:"default"});
 }
 window.openEditor=openEditor;
 
-/* ---------- categories ---------- */
-function openCategories(){
-  const b=sheet("Категории",`<p class="count" style="margin:0">Разделете доставчиците по вид машина или консуматив. Промените важат веднага.</p><div id="cmList" style="display:flex;flex-direction:column;gap:8px"></div>
-  <div class="cm-row" style="border-top:1px solid var(--line);padding-top:14px"><input id="cmNew" placeholder="Нова категория, напр. „Етикетиращи машини“"><select id="cmGroup"><option value="machines">Машини</option><option value="consumables">Консумативи</option></select><button class="btn primary" type="button" id="cmAdd">Добави</button></div>`);
-  const draw=()=>{$("#cmList").innerHTML=Object.entries(GROUPS).map(([g,n])=>`<h3 style="margin:8px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">${n}</h3>`+sortCats(categories.filter(c=>c.group===g)).map(c=>`<div class="cm-row" data-id="${c.id}"><input value="${esc(c.name)}" data-f="name" aria-label="Име"><select data-f="group" aria-label="Група">${Object.entries(GROUPS).map(([v,l])=>`<option value="${v}" ${v===c.group?"selected":""}>${l}</option>`).join("")}</select><button class="btn danger" type="button" data-del>Изтрий</button></div>`).join("")).join("")};
-  draw();
-  $("#cmList").addEventListener("change",async e=>{const r=e.target.closest("[data-id]");if(!r)return;const v=e.target.value.trim();if(!v)return;
-    try{await db.collection("categories").doc(r.dataset.id).update({[e.target.dataset.f]:v});toast("Запазено")}catch(err){toast("Не се запази: "+err.message)}});
-  $("#cmList").addEventListener("click",async e=>{const d=e.target.closest("[data-del]");if(!d)return;
-    if(!d.dataset.arm){d.dataset.arm=1;d.textContent="Сигурни ли сте?";return}
-    try{await db.collection("categories").doc(d.closest("[data-id]").dataset.id).delete();if(filter===d.closest("[data-id]").dataset.id)filter="__all";draw()}catch(err){toast("Не се изтри: "+err.message)}});
-  $("#cmAdd").onclick=async()=>{const name=$("#cmNew").value.trim();if(!name){$("#cmNew").focus();return}
-    try{await db.collection("categories").add({name,group:$("#cmGroup").value,order:Date.now()});$("#cmNew").value="";setTimeout(draw,300)}catch(err){toast("Не се добави: "+err.message)}};
-}
-
 /* ---------- export ---------- */
 async function exportCsv(){
-  const cols=[["company","Фирма"],["person","Лице"],["position","Длъжност"],["phones","Телефони"],["emails","Имейли"],["website","Сайт"],["address","Адрес"],["city","Град"],["eik","ЕИК"],["products","Предлага"],["cats","Категории"],["rating","Оценка"],["notes","Бележки"]];
+  const cols=[...BASE_FIELDS.map(([k])=>[k,L(k)]),["cats","Категории"],["rating","Оценка"],...customFields().map(f=>["x:"+f.id,f.label])];
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-  const rows=visible().map(s=>cols.map(([k])=>q(k==="cats"?(s.categories||[]).map(id=>catById(id)?.name).filter(Boolean).join("; "):s[k])).join(";"));
+  const rows=visible().map(s=>cols.map(([k])=>q(k==="cats"?(s.categories||[]).map(id=>catById(id)?.name).filter(Boolean).join("; "):k.startsWith("x:")?s.extra?.[k.slice(2)]:s[k])).join(";"));
   const csv="﻿"+[cols.map(c=>q(c[1])).join(";"),...rows].join("\r\n");
   try{await downloads.save({filename:"dostavchici.csv",data:new Blob([csv],{type:"text/csv"})})}catch(e){if(e?.code!=="declined")toast("Файлът не се запази")}
 }
 
+/* ---------- settings: general, fields, groups, categories ---------- */
+const PALETTE={/* light fg, light soft, dark fg, dark soft, tile from, tile to */
+  blue:["#2c62a0","#dfe9f6","#8db8ea","#1a2838","#2c62a0","#173a63"],
+  amber:["#b0620f","#f8e8d3","#eaa964","#36261a","#c06f18","#7a3f07"],
+  green:["#1f7a4d","#dcefe3","#6fcf9b","#163225","#1f8a5b","#0f4a30"],
+  red:["#b3261e","#f9e0de","#ff8a80","#3a1a18","#b8392f","#6e1a14"],
+  violet:["#6b46b5","#ece4f8","#b9a2ec","#2a2140","#7550c4","#3d2670"],
+  teal:["#0f7c80","#d9f0f0","#6fd0d3","#123334","#13878b","#0a4a4c"],
+  pink:["#b0336d","#f8e0ec","#f08fbd","#3a1a2a","#c03d7a","#6b1d43"],
+  slate:["#4a5a66","#e3e8ec","#a9b8c4","#232c33","#56677a","#2a3440"],
+};
+const COLOR_NAMES={blue:"Син",amber:"Оранжев",green:"Зелен",red:"Червен",violet:"Лилав",teal:"Тюркоаз",pink:"Розов",slate:"Сив"};
+const FIELD_TYPES={text:"Кратък текст",textarea:"Дълъг текст",number:"Число",date:"Дата",select:"Избор от списък",yesno:"Да / Не"};
+const SHORT_LABELS={company:"Фирма",person:"Лице",position:"Длъжност",phones:"Телефон",emails:"Имейл",website:"Сайт",address:"Адрес",city:"Град",eik:"ЕИК",products:"Предлага",notes:"Бележки"};
+const DEFAULT_SETTINGS={
+  general:{appName:"Доставчици",subtitle:"картотека визитки",headline:"Всеки доставчик. *Една снимка* разстояние.",defaultSort:"name",defaultView:"grid",skipDuplicates:true},
+  groups:[{id:"machines",name:"Машини",color:"blue"},{id:"consumables",name:"Консумативи",color:"amber"}],
+  fields:{},
+  custom:[],
+};
+let SETTINGS=structuredClone(DEFAULT_SETTINGS),settingsApplied=false;
+const GROUP_ID=/^[a-z][a-z0-9_]{1,30}$/,CUSTOM_ID=/^x_[a-z0-9]{3,16}$/;
+const str=(v,max,def="")=>typeof v==="string"?v.trim().slice(0,max):def;
+/* Settings come from the shared store, so every value is checked before it reaches the page or the CSS. */
+function cleanSettings(raw){
+  raw=raw&&typeof raw==="object"?raw:{};const g=raw.general||{},d=DEFAULT_SETTINGS.general;
+  const out={general:{appName:str(g.appName,60)||d.appName,subtitle:str(g.subtitle,80,d.subtitle),headline:str(g.headline,160)||d.headline,
+    defaultSort:["name","new","old","rating"].includes(g.defaultSort)?g.defaultSort:d.defaultSort,
+    defaultView:["grid","list"].includes(g.defaultView)?g.defaultView:d.defaultView,skipDuplicates:g.skipDuplicates!==false},
+    groups:[],fields:{},custom:[]};
+  const seen=new Set();
+  for(const x of Array.isArray(raw.groups)?raw.groups:[]){if(!x||!GROUP_ID.test(x.id)||seen.has(x.id))continue;seen.add(x.id);
+    out.groups.push({id:x.id,name:str(x.name,40)||x.id,color:PALETTE[x.color]?x.color:"slate"});if(out.groups.length>=12)break}
+  if(!out.groups.length)out.groups=structuredClone(DEFAULT_SETTINGS.groups);
+  for(const [k] of BASE_FIELDS){const f=raw.fields?.[k];if(!f)continue;out.fields[k]={label:str(f.label,60),hidden:k!=="company"&&f.hidden===true}}
+  const cs=new Set();
+  for(const x of Array.isArray(raw.custom)?raw.custom:[]){if(!x||!CUSTOM_ID.test(x.id)||cs.has(x.id))continue;cs.add(x.id);
+    out.custom.push({id:x.id,label:str(x.label,60)||"Поле",type:FIELD_TYPES[x.type]?x.type:"text",
+      options:(Array.isArray(x.options)?x.options:[]).map(o=>str(o,80)).filter(Boolean).slice(0,50)});if(out.custom.length>=40)break}
+  return out;
+}
+const isHidden=k=>!!SETTINGS.fields[k]?.hidden;
+const L=k=>SETTINGS.fields[k]?.label||SHORT_LABELS[k]||k;
+const customFields=()=>SETTINGS.custom;
+const catGroup=c=>GROUPS[c.group]?c.group:SETTINGS.groups[0].id;
+const headlineHtml=t=>esc(t).replace(/\*(.+?)\*/g,"<em>$1</em>");
+function groupCss(){
+  const Lv=[],Dv=[],C=[];
+  for(const g of SETTINGS.groups){const p=PALETTE[g.color];
+    Lv.push(`--g-${g.id}:${p[0]};--g-${g.id}-soft:${p[1]}`);Dv.push(`--g-${g.id}:${p[2]};--g-${g.id}-soft:${p[3]}`);
+    C.push(`.tag.g-${g.id}{background:var(--g-${g.id}-soft);color:var(--g-${g.id})}.chip.on.g-${g.id}{background:var(--g-${g.id}-soft);border-color:var(--g-${g.id});color:var(--g-${g.id});font-weight:600}.mono-tile.g-${g.id}{--tile-a:${p[4]};--tile-b:${p[5]}}`)}
+  return `:root{${Lv.join(";")}}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${Dv.join(";")}}}:root[data-theme="dark"]{${Dv.join(";")}}${C.join("")}`;
+}
+function setSettings(raw,initial){
+  SETTINGS=cleanSettings(raw);
+  GROUPS=Object.fromEntries(SETTINGS.groups.map(g=>[g.id,g.name]));
+  FIELDS=BASE_FIELDS.filter(([k])=>!isHidden(k)).map(([k,l,c,t])=>[k,SETTINGS.fields[k]?.label||l,c,t]);
+  let st=$("#gstyle");if(!st){st=document.createElement("style");st.id="gstyle";document.head.append(st)}st.textContent=groupCss();
+  const G=SETTINGS.general;document.title=G.appName;
+  $("#logoT").innerHTML=`${esc(G.appName)}<small>${esc(G.subtitle)}</small>`;$("#logoMark").textContent=(G.appName.trim()[0]||"Д").toUpperCase();
+  $("#headline").innerHTML=headlineHtml(G.headline);
+  if(!initial&&!settingsApplied){settingsApplied=true;
+    let sv=null,vv=null;try{sv=localStorage.getItem("sup-sort");vv=localStorage.getItem("sup-view")}catch{}
+    if(!sv)$("#sort").value=G.defaultSort;if(!vv){view=G.defaultView;syncView()}}
+}
+function customInput(f,v){
+  const id="fx_"+f.id,val=v??"";
+  const ctl=f.type==="textarea"?`<textarea id="${id}">${esc(val)}</textarea>`
+    :f.type==="select"?`<select id="${id}"><option value="">—</option>${[...new Set([...f.options,...(val&&!f.options.includes(val)?[val]:[])])].map(o=>`<option ${o===val?"selected":""}>${esc(o)}</option>`).join("")}</select>`
+    :f.type==="yesno"?`<select id="${id}"><option value="">—</option><option ${val==="Да"?"selected":""}>Да</option><option ${val==="Не"?"selected":""}>Не</option></select>`
+    :`<input id="${id}" type="${f.type==="number"?"number":f.type==="date"?"date":"text"}" ${f.type==="number"?'inputmode="decimal" step="any"':""} value="${esc(val)}">`;
+  return `<label class="f ${f.type==="textarea"?"full":""}" for="${id}">${esc(f.label)}${ctl}</label>`;
+}
+function readExtra(prev){
+  const out={...(prev&&typeof prev==="object"?prev:{})};
+  for(const f of customFields()){const el=$("#fx_"+f.id);if(!el)continue;const v=el.value.trim();if(v)out[f.id]=v.slice(0,2000);else delete out[f.id]}
+  return out;
+}
+function fmtExtra(f,v){
+  if(v==null||v==="")return"";
+  if(f.type==="date"){const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${+m[3]} ${MON[+m[2]-1]} ${m[1]}`:esc(v)}
+  return esc(v).replace(/\n/g,"<br>");
+}
+function extraText(s){return Object.values(s.extra||{}).join(" ")}
+
+const newId=p=>p+Math.random().toString(36).slice(2,8);
+function openSettings(tab){
+  let W=structuredClone(SETTINGS);
+  const canSet=BACKEND.canSettings(),canCats=BACKEND.canCats();
+  const TABS=[["general","Общи"],["fields","Полета"],["groups","Групи"],["cats","Категории"]];
+  tab=tab||(canSet?"general":"cats");
+  const b=sheet("Настройки",`<div class="tabs" role="tablist">${TABS.map(([k,l])=>`<button type="button" role="tab" data-tab="${k}">${l}</button>`).join("")}${BACKEND.extraTabs?.()||""}</div><div id="setBody"></div>`);
+  const lock=`<p class="notice">Само администратор може да променя тези настройки.</p>`;
+  const saveBar=`<div class="foot"><span class="count" id="setMsg"></span><button class="btn primary" type="button" id="setSave" ${canSet?"":"disabled"}>Запази настройките</button></div>`;
+  const save=async()=>{const btn=$("#setSave");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> Записвам…`;
+    try{const clean=cleanSettings(W);await BACKEND.saveSettings(clean);setSettings(clean);W=structuredClone(SETTINGS);render();toast("Настройките са запазени");show(tab)}
+    catch(e){toast("Не се запази: "+e.message);btn.disabled=false;btn.textContent="Запази настройките"}};
+  const show=t=>{tab=t;b.querySelectorAll("[data-tab]").forEach(x=>x.setAttribute("aria-selected",x.dataset.tab===t));
+    const body=$("#setBody");
+    if(t==="general"){const G=W.general;
+      body.innerHTML=(canSet?"":lock)+`<fieldset>
+        <label class="f full" for="sg_name">Име на приложението<input id="sg_name" maxlength="60" value="${esc(G.appName)}"></label>
+        <label class="f full" for="sg_sub">Подзаглавие под името<input id="sg_sub" maxlength="80" value="${esc(G.subtitle)}"></label>
+        <label class="f full" for="sg_head">Заглавие на началната страница<input id="sg_head" maxlength="160" value="${esc(G.headline)}"><span>Текстът между звездички се оцветява в зелено: *Една снимка*</span></label>
+        <label class="f" for="sg_sort">Подреждане по подразбиране<select id="sg_sort">${[["name","по име (А–Я)"],["new","най-нови първо"],["old","най-стари първо"],["rating","по оценка"]].map(([v,l])=>`<option value="${v}" ${G.defaultSort===v?"selected":""}>${l}</option>`).join("")}</select></label>
+        <label class="f" for="sg_view">Изглед по подразбиране<select id="sg_view"><option value="grid" ${G.defaultView==="grid"?"selected":""}>Карти</option><option value="list" ${G.defaultView==="list"?"selected":""}>Списък</option></select></label>
+        <label class="row full" for="sg_dup"><input type="checkbox" id="sg_dup" ${G.skipDuplicates?"checked":""}> При импорт пропускай вече въведените доставчици</label>
+      </fieldset>`+saveBar;
+      const bind=(id,k,f=v=>v)=>$(id).addEventListener("input",e=>{W.general[k]=f(e.target.type==="checkbox"?e.target.checked:e.target.value)});
+      bind("#sg_name","appName");bind("#sg_sub","subtitle");bind("#sg_head","headline");bind("#sg_sort","defaultSort");bind("#sg_view","defaultView");
+      $("#sg_dup").onchange=e=>{W.general.skipDuplicates=e.target.checked};
+    }
+    if(t==="fields"){
+      const std=BASE_FIELDS.map(([k,l])=>{const f=W.fields[k]||{};return `<div class="set-row" data-k="${k}"><input aria-label="Име на полето ${esc(l)}" data-f="label" maxlength="60" placeholder="${esc(SHORT_LABELS[k])}" value="${esc(f.label||"")}"><label class="row" title="${k==="company"?"Фирмата винаги се показва":""}"><input type="checkbox" data-f="show" ${f.hidden?"":"checked"} ${k==="company"?"disabled":""}> Показвай</label></div>`}).join("");
+      const cust=W.custom.map(f=>`<div class="set-row cust" data-id="${f.id}"><input aria-label="Име на полето" data-f="label" maxlength="60" value="${esc(f.label)}"><select data-f="type" aria-label="Вид">${Object.entries(FIELD_TYPES).map(([v,l])=>`<option value="${v}" ${f.type===v?"selected":""}>${l}</option>`).join("")}</select><button class="btn danger" type="button" data-del>Изтрий</button>${f.type==="select"?`<input class="opts" data-f="options" aria-label="Възможности за избор" placeholder="Възможности, разделени със запетая" value="${esc(f.options.join(", "))}">`:""}</div>`).join("");
+      body.innerHTML=(canSet?"":lock)+`<p class="count" style="margin:0">Сменете името на полето или го скрийте. Скритото поле не се показва, но данните в него се пазят. Празното име означава името по подразбиране.</p>
+        <div class="set-list">${std}</div>
+        <h3 class="set-h">Допълнителни полета</h3>
+        <p class="count" style="margin:0">Добавете свои полета, например „Срок на доставка“, „Начин на плащане“ или „Дилър за марка“.</p>
+        <div class="set-list" id="custList">${cust||`<span class="count">Още няма допълнителни полета.</span>`}</div>
+        <button class="btn" type="button" id="addField" ${W.custom.length>=40?"disabled":""}>+ Добави поле</button>`+saveBar;
+      body.querySelectorAll(".set-row[data-k]").forEach(r=>{const k=r.dataset.k;
+        r.querySelector('[data-f="label"]').oninput=e=>{(W.fields[k]??={}).label=e.target.value};
+        r.querySelector('[data-f="show"]').onchange=e=>{(W.fields[k]??={}).hidden=!e.target.checked}});
+      body.querySelectorAll(".set-row.cust").forEach(r=>{const f=W.custom.find(x=>x.id===r.dataset.id);
+        r.querySelector('[data-f="label"]').oninput=e=>{f.label=e.target.value};
+        r.querySelector('[data-f="type"]').onchange=e=>{f.type=e.target.value;show("fields")};
+        const o=r.querySelector('[data-f="options"]');if(o)o.oninput=e=>{f.options=e.target.value.split(",").map(x=>x.trim()).filter(Boolean)};
+        r.querySelector("[data-del]").onclick=e=>{const d=e.target;if(!d.dataset.arm){d.dataset.arm=1;d.textContent="Сигурни ли сте?";return}W.custom=W.custom.filter(x=>x!==f);show("fields")}});
+      $("#addField").onclick=()=>{W.custom.push({id:newId("x_"),label:"Ново поле",type:"text",options:[]});show("fields");const ins=body.querySelectorAll(".set-row.cust input[data-f=label]");ins[ins.length-1]?.select()};
+    }
+    if(t==="groups"){
+      const count=id=>categories.filter(c=>catGroup(c)===id).length;
+      body.innerHTML=(canSet?"":lock)+`<p class="count" style="margin:0">Групите събират категориите, например „Машини“, „Консумативи“, „Услуги“. Всяка група има свой цвят и ред на началната страница.</p>
+        <div class="set-list">${W.groups.map(g=>{const n=count(g.id);return `<div class="set-row grp" data-id="${g.id}"><span class="dot" style="background:${PALETTE[g.color][0]}" aria-hidden="true"></span><input aria-label="Име на групата" data-f="name" maxlength="40" value="${esc(g.name)}"><select data-f="color" aria-label="Цвят">${Object.entries(COLOR_NAMES).map(([v,l])=>`<option value="${v}" ${g.color===v?"selected":""}>${l}</option>`).join("")}</select><button class="btn danger" type="button" data-del ${n||W.groups.length<2?"disabled":""} title="${n?`Групата има ${n} категории. Преместете ги първо.`:W.groups.length<2?"Трябва да има поне една група":""}">Изтрий</button>${n?`<span class="count full-row">${n} ${n===1?"категория":"категории"}</span>`:""}</div>`}).join("")}</div>
+        <button class="btn" type="button" id="addGroup" ${W.groups.length>=12?"disabled":""}>+ Нова група</button>`+saveBar;
+      body.querySelectorAll(".set-row.grp").forEach(r=>{const g=W.groups.find(x=>x.id===r.dataset.id);
+        r.querySelector('[data-f="name"]').oninput=e=>{g.name=e.target.value};
+        r.querySelector('[data-f="color"]').onchange=e=>{g.color=e.target.value;r.querySelector(".dot").style.background=PALETTE[g.color][0]};
+        r.querySelector("[data-del]").onclick=()=>{W.groups=W.groups.filter(x=>x!==g);show("groups")}});
+      $("#addGroup").onclick=()=>{const used=new Set(W.groups.map(g=>g.color));W.groups.push({id:newId("g"),name:"Нова група",color:Object.keys(PALETTE).find(c=>!used.has(c))||"slate"});show("groups");const ins=body.querySelectorAll(".set-row.grp input");ins[ins.length-1]?.select()};
+    }
+    if(t==="cats"){
+      const gsel=(cur,attrs)=>`<select ${attrs}>${SETTINGS.groups.map(g=>`<option value="${g.id}" ${g.id===cur?"selected":""}>${esc(g.name)}</option>`).join("")}</select>`;
+      body.innerHTML=(canCats?"":`<p class="notice">Нямате права да променяте категориите.</p>`)+`<p class="count" style="margin:0">Промените по категориите се записват веднага.</p>
+        <div id="cmList" class="set-list">${SETTINGS.groups.map(g=>`<h3 class="set-h"><span class="dot" style="background:var(--g-${g.id})"></span> ${esc(g.name)}</h3>`+(sortCats(categories.filter(c=>catGroup(c)===g.id)).map(c=>`<div class="cm-row" data-id="${c.id}"><input value="${esc(c.name)}" data-f="name" aria-label="Име на категорията" maxlength="190">${gsel(catGroup(c),'data-f="group" aria-label="Група"')}<button class="btn danger" type="button" data-del>Изтрий</button></div>`).join("")||`<span class="count">Няма категории</span>`)).join("")}</div>
+        <div class="cm-row" style="border-top:1px solid var(--line);padding-top:14px"><input id="cmNew" placeholder="Нова категория, напр. „Етикетиращи машини“" maxlength="190">${gsel(SETTINGS.groups[0].id,'id="cmGroup" aria-label="Група на новата категория"')}<button class="btn primary" type="button" id="cmAdd">Добави</button></div>`;
+      if(!canCats)body.querySelectorAll("input,select,button").forEach(x=>x.disabled=true);
+      $("#cmList").onchange=async e=>{const r=e.target.closest("[data-id]");if(!r)return;const v=e.target.value.trim();if(!v)return;
+        try{await BACKEND.catUpdate(r.dataset.id,{[e.target.dataset.f]:v});toast("Запазено");if(e.target.dataset.f==="group")setTimeout(()=>show("cats"),300)}catch(err){toast("Не се запази: "+err.message)}};
+      $("#cmList").onclick=async e=>{const d=e.target.closest("[data-del]");if(!d)return;
+        if(!d.dataset.arm){d.dataset.arm=1;d.textContent="Сигурни ли сте?";return}
+        const id=d.closest("[data-id]").dataset.id;
+        try{await BACKEND.catDelete(id);if(filter===id)filter="__all";setTimeout(()=>show("cats"),300)}catch(err){toast("Не се изтри: "+err.message)}};
+      $("#cmAdd").onclick=async()=>{const name=$("#cmNew").value.trim();if(!name){$("#cmNew").focus();return}
+        try{await BACKEND.catAdd(name,$("#cmGroup").value);toast("Добавена");setTimeout(()=>{show("cats");$("#cmNew")?.focus()},300)}catch(err){toast("Не се добави: "+err.message)}};
+    }
+    $("#setSave")?.addEventListener("click",save);
+    if(!canSet&&t!=="cats")body.querySelectorAll("input,select,textarea,#addField,#addGroup,[data-del]").forEach(x=>x.disabled=true);
+  };
+  b.querySelector(".tabs").addEventListener("click",e=>{const x=e.target.closest("[data-tab]");if(x)show(x.dataset.tab);const u=e.target.closest("[data-users]");if(u)BACKEND.openUsers()});
+  show(tab);
+}
+
 const BACKEND={
   canAI:()=>!!sample,
+  canSettings:()=>!!db,canCats:()=>!!db,
+  async saveSettings(o){if(!db)throw new Error("базата не е достъпна");await db.doc("settings/app").set(o)},
+  catUpdate:(id,p)=>db.collection("categories").doc(id).update(p),
+  catDelete:id=>db.collection("categories").doc(id).delete(),
+  catAdd:(name,group)=>db.collection("categories").add({name,group,order:Date.now()}),
   parseText(text){const catList=categories.map(c=>`- ${c.id}: ${c.name} (${GROUPS[c.group]})`).join("\n");return sample.json(PARSE_TEXT_PROMPT(text,catList),{modelTier:"default"})},
   async importRows(rows,newCats,group,progress){
     if(!db)throw new Error("базата не е достъпна");
@@ -649,7 +818,7 @@ ${text.slice(0,20000)}
 """`;
 
 /* ---------- import from Excel / CSV ---------- */
-const IMPORT_FIELDS=[["","— пропусни —"],["company","Фирма"],["person","Лице за контакт"],["position","Длъжност"],["phones","Телефони"],["emails","Имейли"],["website","Сайт"],["address","Адрес"],["city","Град"],["eik","ЕИК"],["products","Предлага"],["notes","Бележки"],["categories","Категории"],["rating","Оценка"]];
+function importFields(){return [["","— пропусни —"],...BASE_FIELDS.map(([k])=>[k,L(k)]),["categories","Категории"],["rating","Оценка"],...customFields().map(f=>[f.id,f.label])]}
 const SYN={
   emails:["имейл","имейли","имейладрес","email","emails","emailaddress","mail","поща","емайл","електроннапоща"],
   phones:["телефон","телефони","тел","gsm","мобилен","мобилентелефон","phone","phones","mobile","tel","telephone","факс","fax"],
@@ -668,6 +837,8 @@ const SYN={
 const normH=h=>String(h??"").toLowerCase().replace(/[^a-zа-я0-9]/g,"");
 function guessField(h){
   const n=normH(h);if(!n)return"";
+  for(const [k] of BASE_FIELDS)if(SETTINGS.fields[k]?.label&&normH(SETTINGS.fields[k].label)===n)return k;
+  for(const f of customFields())if(normH(f.label)===n)return f.id;
   for(const [f,l] of Object.entries(SYN))if(l.includes(n))return f;
   for(const [f,l] of Object.entries(SYN))if(l.some(s=>s.length>=3&&n.startsWith(s)))return f;
   return"";
@@ -721,9 +892,9 @@ function openImport(){
       $("#impStep2").innerHTML=`
         <label class="row" for="impHeader"><input type="checkbox" id="impHeader" ${header?"checked":""}> Първият ред е заглавен</label>
         <div class="imp-cols">${Array.from({length:width},(_,i)=>{const samples=body.map(r=>r[i]).filter(v=>v&&String(v).trim()).slice(0,3);
-          return `<div class="imp-col"><div class="imp-h"><b>${esc(header?(data[0][i]||"Колона "+(i+1)):"Колона "+(i+1))}</b><select data-col="${i}" aria-label="Графа за колона ${i+1}">${IMPORT_FIELDS.map(([v,l])=>`<option value="${v}" ${map[i]===v?"selected":""}>${l}</option>`).join("")}</select></div><div class="imp-s">${samples.map(esc).join(" · ")||"<i>празна</i>"}</div></div>`}).join("")}</div>
-        <div class="row"><label class="row" for="impDup"><input type="checkbox" id="impDup" checked> Пропусни вече въведените (същ ЕИК или име на фирма)</label></div>
-        <label class="f" for="impGroup" id="impGroupL" hidden>Новите категории от файла да са в<select id="impGroup"><option value="consumables">Консумативи</option><option value="machines">Машини</option><option value="">Не създавай нови категории</option></select></label>
+          return `<div class="imp-col"><div class="imp-h"><b>${esc(header?(data[0][i]||"Колона "+(i+1)):"Колона "+(i+1))}</b><select data-col="${i}" aria-label="Графа за колона ${i+1}">${importFields().map(([v,l])=>`<option value="${v}" ${map[i]===v?"selected":""}>${l}</option>`).join("")}</select></div><div class="imp-s">${samples.map(esc).join(" · ")||"<i>празна</i>"}</div></div>`}).join("")}</div>
+        <div class="row"><label class="row" for="impDup"><input type="checkbox" id="impDup" ${SETTINGS.general.skipDuplicates?"checked":""}> Пропусни вече въведените (същ ЕИК или име на фирма)</label></div>
+        <label class="f" for="impGroup" id="impGroupL" hidden>Новите категории от файла да са в<select id="impGroup">${SETTINGS.groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join("")}<option value="">Не създавай нови категории</option></select></label>
         <p class="notice" id="impSum"></p>
         <div class="row"><button class="btn primary" type="button" id="impGo">Импортирай</button><span class="count" id="impProg"></span></div>`;
       $("#impHeader").onchange=e=>{header=e.target.checked;if(header)guesses.forEach((g,i)=>{if(g&&!map[i])map[i]=g});draw()};
@@ -739,10 +910,11 @@ function openImport(){
       const known=new Set(categories.map(c=>c.name.trim().toLowerCase()));
       const rows=[],newCats=new Map();let dups=0,empty=0;
       for(const r of body){
-        const o={company:"",person:"",position:"",phones:"",emails:"",website:"",address:"",city:"",eik:"",products:"",notes:"",rating:0,catNames:[]};
+        const o={company:"",person:"",position:"",phones:"",emails:"",website:"",address:"",city:"",eik:"",products:"",notes:"",rating:0,catNames:[],extra:{}};
         map.forEach((f,i)=>{const v=String(r[i]??"").trim();if(!f||!v)return;
           if(f==="categories")o.catNames.push(...v.split(/[;,\/|]/).map(x=>x.trim()).filter(Boolean));
           else if(f==="rating"){const m=v.match(/\d/);o.rating=Math.max(0,Math.min(5,m?+m[0]:(v.match(/★/g)||[]).length))}
+          else if(CUSTOM_ID.test(f))o.extra[f]=o.extra[f]?o.extra[f]+", "+v:v;
           else o[f]=o[f]?o[f]+", "+v:v});
         if(!o.company&&!o.person){empty++;continue}
         const d=o.eik.replace(/\D/g,""),co=o.company.toLowerCase();
@@ -765,7 +937,7 @@ function openImport(){
     const go=async()=>{
       const {rows,newCats}=build();const group=$("#impGroup").value;
       const btn=$("#impGo");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> Импортирам…`;
-      try{const added=await BACKEND.importRows(rows,group?newCats:[],group||"consumables",n=>{$("#impProg").textContent=`${n} от ${rows.length}`});
+      try{const added=await BACKEND.importRows(rows,group?newCats:[],group||SETTINGS.groups[0].id,n=>{$("#impProg").textContent=`${n} от ${rows.length}`});
         closeSheet();toast(added===1?"Добавен 1 доставчик":`Добавени ${added} доставчика`);filter="__all";render()}
       catch(e){toast("Импортът спря: "+e.message+". Вече добавените остават.");btn.disabled=false;btn.textContent="Опитай отново"}
     };
@@ -778,5 +950,6 @@ function openImport(){
 }
 $("#importBtn").addEventListener("click",openImport);
 
+setSettings(null,true);
 render();boot();
 </script>

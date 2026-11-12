@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/lib/app.php';
 require __DIR__ . '/lib/claude.php';
+require __DIR__ . '/lib/settings.php';
 security_headers();
 
 /* JSON API for the page. Reads need a signed-in user; writes need the editor or admin role and a CSRF token. */
@@ -15,7 +16,7 @@ $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
 if ($isPost) {
     check_csrf($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
 }
-$writes = ['parse_text', 'import_rows', 'supplier_save', 'supplier_fav', 'supplier_delete', 'category_save', 'category_delete', 'read_card', 'user_save', 'user_delete'];
+$writes = ['settings_save', 'parse_text', 'import_rows', 'supplier_save', 'supplier_fav', 'supplier_delete', 'category_save', 'category_delete', 'read_card', 'user_save', 'user_delete'];
 if (in_array($action, $writes, true) && !$isPost) {
     json_error('Това действие изисква POST.', 405);
 }
@@ -54,6 +55,7 @@ function load_suppliers(?int $id = null): array
         'rating' => (int)$r['rating'], 'fav' => (bool)$r['fav'],
         'front' => $r['front'], 'back' => $r['back'],
         'categories' => $r['cats'] ? explode(',', $r['cats']) : [],
+        'extra' => clean_extra($r['extra'] ?? null) ?: new stdClass(),
         'createdAt' => ms($r['created_at']), 'updatedAt' => ms($r['updated_at']),
     ], $st->fetchAll());
 }
@@ -84,7 +86,9 @@ function delete_upload(?string $name): void
 
 switch ($action) {
     case 'bootstrap':
+        ensure_schema();
         json_out([
+            'settings' => load_settings(),
             'me' => ['id' => (int)$user['id'], 'name' => $user['name'], 'email' => $user['email'], 'role' => $user['role']],
             'categories' => load_categories(),
             'suppliers' => load_suppliers(),
@@ -107,6 +111,7 @@ switch ($action) {
             'products' => str_in($in, 'products', 4000), 'notes' => str_in($in, 'notes', 8000),
             'rating' => max(0, min(5, (int)($in['rating'] ?? 0))), 'fav' => !empty($in['fav']) && $in['fav'] !== 'false' ? 1 : 0,
         ];
+        if (isset($in['extra'])) $d['extra'] = json_encode(clean_extra($in['extra']), JSON_UNESCAPED_UNICODE) ?: null;
         if ($d['company'] === '' && $d['person'] === '') json_error('Попълнете поне фирма или лице за контакт.');
         $toDelete = [];
         foreach (['front', 'back'] as $k) {
@@ -159,7 +164,7 @@ switch ($action) {
     case 'category_save':
         need_editor($user);
         $name = str_in($in, 'name', 190);
-        $grp = in_array($in['group'] ?? '', ['machines', 'consumables'], true) ? $in['group'] : null;
+        $grp = isset(group_names()[$in['group'] ?? '']) ? $in['group'] : null;
         $id = (int)($in['id'] ?? 0);
         if ($id) {
             if ($name !== '') db()->prepare('UPDATE categories SET name = ? WHERE id = ?')->execute([$name, $id]);
@@ -188,7 +193,7 @@ switch ($action) {
             $images[] = ['data' => file_get_contents($_FILES[$k]['tmp_name']), 'type' => $info['mime']];
         }
         if (!$images) json_error('Първо добавете снимка на визитката.');
-        $cats = array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name'], 'grp' => $c['group']], load_categories());
+        $cats = array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name'], 'grp' => group_names()[$c['group']] ?? $c['group']], load_categories());
         try {
             $r = read_business_card($images, $cats);
         } catch (RuntimeException $e) {
@@ -197,12 +202,25 @@ switch ($action) {
         $r['categoryIds'] = array_map('strval', array_filter((array)($r['categoryIds'] ?? []), 'is_numeric'));
         json_out(['card' => $r]);
 
+    case 'settings_save':
+        need_admin($user);
+        $new = clean_settings($in['settings'] ?? null);
+        $ids = array_column($new['groups'], 'id');
+        $st = db()->query('SELECT grp, COUNT(*) n FROM categories GROUP BY grp');
+        foreach ($st->fetchAll() as $r) {
+            if (!in_array($r['grp'], $ids, true) && isset(group_names()[$r['grp']])) {
+                json_error('Групата „' . group_names()[$r['grp']] . '“ има ' . $r['n'] . ' категории. Преместете ги в друга група, преди да я изтриете.');
+            }
+        }
+        save_settings($new);
+        json_out(['settings' => $new]);
+
     case 'parse_text':
         need_editor($user);
         if (!ai_enabled()) json_error('Разчитането не е настроено. Добавете anthropic_api_key в config.php.');
         $text = trim((string)($in['text'] ?? ''));
         if ($text === '') json_error('Първо поставете текст.');
-        $cats = array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name'], 'grp' => $c['group']], load_categories());
+        $cats = array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name'], 'grp' => group_names()[$c['group']] ?? $c['group']], load_categories());
         try {
             $r = read_supplier_text($text, $cats);
         } catch (RuntimeException $e) {
@@ -215,7 +233,7 @@ switch ($action) {
         need_editor($user);
         $rows = $in['rows'] ?? null;
         if (!is_array($rows) || count($rows) > 200) json_error('Изпратете до 200 реда наведнъж.');
-        $grp = in_array($in['group'] ?? '', ['machines', 'consumables'], true) ? $in['group'] : 'consumables';
+        $grp = isset(group_names()[$in['group'] ?? '']) ? $in['group'] : array_key_first(group_names());
         $pdo = db();
         $pdo->beginTransaction();
         $ids = [];
@@ -228,8 +246,8 @@ switch ($action) {
             $insCat->execute([$name, $grp, ++$order]);
             $ids[mb_strtolower($name)] = (int)$pdo->lastInsertId();
         }
-        $insSup = $pdo->prepare('INSERT INTO suppliers (company, person, position, phones, emails, website, address, city, eik, products, notes, rating, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $insSup = $pdo->prepare('INSERT INTO suppliers (company, person, position, phones, emails, website, address, city, eik, products, notes, extra, rating, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $insSc = $pdo->prepare('INSERT IGNORE INTO supplier_categories (supplier_id, category_id) VALUES (?, ?)');
         $added = 0;
         foreach ($rows as $r) {
@@ -238,6 +256,7 @@ switch ($action) {
             if ($v('company') === '' && $v('person') === '') continue;
             $insSup->execute([$v('company'), $v('person'), $v('position'), $v('phones', 2000), $v('emails', 2000), $v('website'),
                 $v('address'), $v('city', 120), $v('eik', 40), $v('products', 4000), $v('notes', 8000),
+                json_encode(clean_extra($r['extra'] ?? null), JSON_UNESCAPED_UNICODE) ?: null,
                 max(0, min(5, (int)($r['rating'] ?? 0))), $user['id']]);
             $sid = (int)$pdo->lastInsertId();
             foreach ((array)($r['catNames'] ?? []) as $n) {
@@ -251,9 +270,10 @@ switch ($action) {
 
     case 'export_csv':
         $cats = array_column(load_categories(), 'name', 'id');
-        $cols = ['company' => 'Фирма', 'person' => 'Лице', 'position' => 'Длъжност', 'phones' => 'Телефони', 'emails' => 'Имейли',
-            'website' => 'Сайт', 'address' => 'Адрес', 'city' => 'Град', 'eik' => 'ЕИК', 'products' => 'Предлага',
-            'cats' => 'Категории', 'rating' => 'Оценка', 'created' => 'Добавен', 'notes' => 'Бележки'];
+        $cols = [];
+        foreach (STD_FIELDS as $k) $cols[$k] = field_label($k);
+        $cols += ['cats' => 'Категории', 'rating' => 'Оценка', 'created' => 'Добавен'];
+        foreach (custom_fields() as $id => $f) $cols['x:' . $id] = $f['label'];
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="dostavchici-' . date('Y-m-d') . '.csv"');
         $out = fopen('php://output', 'w');
@@ -262,6 +282,7 @@ switch ($action) {
         foreach (load_suppliers() as $s) {
             $s['cats'] = implode('; ', array_filter(array_map(fn($id) => $cats[$id] ?? null, $s['categories'])));
             $s['created'] = $s['createdAt'] ? date('d.m.Y', intdiv($s['createdAt'], 1000)) : '';
+            foreach ((array)$s['extra'] as $xk => $xv) $s['x:' . $xk] = $xv;
             $row = [];
             foreach (array_keys($cols) as $k) {
                 $v = (string)($s[$k] ?? '');
@@ -279,7 +300,7 @@ switch ($action) {
         $tmp = tempnam(sys_get_temp_dir(), 'bk');
         $zip = new ZipArchive();
         $zip->open($tmp, ZipArchive::OVERWRITE);
-        $zip->addFromString('data.json', json_encode(['exportedAt' => date('c'), 'categories' => load_categories(), 'suppliers' => load_suppliers()],
+        $zip->addFromString('data.json', json_encode(['exportedAt' => date('c'), 'settings' => load_settings(), 'categories' => load_categories(), 'suppliers' => load_suppliers()],
             JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         foreach (glob(UPLOAD_DIR . '/*.{jpg,png,webp}', GLOB_BRACE) ?: [] as $f) $zip->addFile($f, 'uploads/' . basename($f));
         $zip->close();

@@ -18,7 +18,7 @@ function ai_enabled(): bool
 
 /**
  * Reads a supplier from pasted text (e-mail signature, web page, message).
- * @param list<array{id:int, name:string, grp:string}> $categories
+ * @param list<array{id:int, name:string, grp:string}> $categories grp is the group's display name
  * @return array<string,mixed>
  */
 function read_supplier_text(string $text, array $categories): array
@@ -39,7 +39,7 @@ function read_business_card(array $images, array $categories, ?string $text = nu
     $client = new Client(apiKey: $cfg['anthropic_api_key']);
 
     $catList = implode("\n", array_map(
-        fn($c) => "- {$c['id']}: {$c['name']} (" . ($c['grp'] === 'machines' ? 'Машини' : 'Консумативи') . ')',
+        fn($c) => "- {$c['id']}: {$c['name']} ({$c['grp']})",
         $categories
     ));
 
