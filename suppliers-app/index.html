@@ -479,11 +479,49 @@ function openDetail(id){
 }
 
 /* ---------- editor ---------- */
+/* Photos from phones arrive as JPEG, PNG, WebP or HEIC (Samsung/iPhone "high efficiency" mode).
+   Every photo is decoded, scaled to at most 1600 px and re-saved as JPEG, so previews, storage and
+   card reading always get a real JPEG. HEIC is converted first with heic2any, loaded only when needed. */
+async function sniffImage(blob){
+  const b=new Uint8Array(await blob.slice(0,16).arrayBuffer());
+  if(!b.length)return"empty";
+  if(b[0]===0xFF&&b[1]===0xD8)return"jpeg";
+  if(b[0]===0x89&&b[1]===0x50&&b[2]===0x4E)return"png";
+  if(b[0]===0x47&&b[1]===0x49&&b[2]===0x46)return"gif";
+  if(b[8]===0x57&&b[9]===0x45&&b[10]===0x42&&b[11]===0x50)return"webp";
+  const box=String.fromCharCode(...b.slice(4,12));
+  if(box.startsWith("ftyp"))return /avif|avis/.test(box)?"avif":"heic";
+  return"unknown";
+}
+let heicLoading=null;
+function loadHeic(){
+  if(window.heic2any)return Promise.resolve(window.heic2any);
+  return heicLoading??=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js";s.onload=()=>res(window.heic2any);s.onerror=()=>{heicLoading=null;rej(new Error("конверторът за HEIC не се зареди"))};document.head.append(s)});
+}
+async function decodeImage(blob){
+  try{return await createImageBitmap(blob)}catch{}
+  const url=URL.createObjectURL(blob);
+  try{const img=new Image();img.src=url;await img.decode();return img}finally{setTimeout(()=>URL.revokeObjectURL(url),1000)}
+}
 async function shrink(file){
-  try{const bmp=await createImageBitmap(file);const m=1600,r=Math.min(1,m/Math.max(bmp.width,bmp.height));
-    const c=document.createElement("canvas");c.width=Math.round(bmp.width*r);c.height=Math.round(bmp.height*r);
-    c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
-    return await new Promise(res=>c.toBlob(b=>res(b||file),"image/jpeg",.86));}catch{return file}
+  if(!file||!file.size)throw new Error("снимката е празна. Снимайте отново или изберете снимка от галерията.");
+  let src=file;const kind=await sniffImage(file);
+  if(kind==="heic"){
+    try{const h=await loadHeic();src=await h({blob:file,toType:"image/jpeg",quality:.9});if(Array.isArray(src))src=src[0]}
+    catch(e){throw new Error("снимката е във формат HEIC и не можа да се преобразува ("+(e?.message||e)+"). В камерата изключете „Снимки с висока ефективност“ и снимайте отново.")}
+  }
+  let img;
+  try{img=await decodeImage(src)}
+  catch{throw new Error(kind==="unknown"?"файлът не е снимка. Изберете снимка JPG или PNG.":`снимката (${kind.toUpperCase()}) не може да се отвори на това устройство. Опитайте със снимка JPG.`)}
+  const w=img.width||img.naturalWidth,h=img.height||img.naturalHeight;
+  if(!w||!h)throw new Error("снимката не можа да се прочете. Снимайте отново.");
+  const r=Math.min(1,1600/Math.max(w,h)),c=document.createElement("canvas");
+  c.width=Math.round(w*r);c.height=Math.round(h*r);
+  const ctx=c.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);
+  let out=await new Promise(res=>c.toBlob(res,"image/jpeg",.86));
+  if(!out){const d=c.toDataURL("image/jpeg",.86);out=await (await fetch(d)).blob()}
+  if(await sniffImage(out)!=="jpeg")throw new Error("снимката не можа да се запише като JPG.");
+  return out;
 }
 const BASE_FIELDS=[["company","Фирма","full"],["person","Лице за контакт"],["position","Длъжност"],["phones","Телефони (разделени със запетая)","full"],["emails","Имейли"],["website","Сайт"],["address","Адрес"],["city","Град"],["eik","ЕИК / ДДС №"],["products","Какво предлага","full"],["notes","Бележки","full",true]];
 let FIELDS=BASE_FIELDS;
@@ -510,7 +548,10 @@ function openEditor(s){
   drawDrop("front");drawDrop("back");
   b.querySelectorAll(".drop").forEach(d=>{const go=e=>{if(e.target.closest("[data-rm]"))return;target=d.dataset.k;$("#file").click()};d.onclick=go;d.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go(e)}}});
   b.addEventListener("click",e=>{const r=e.target.closest("[data-rm]");if(r){e.stopPropagation();ph[r.dataset.rm]={id:null,blob:null};drawDrop(r.dataset.rm)}});
-  $("#file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;ph[target].blob=await shrink(f);drawDrop(target)};
+  $("#file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;const k=target,d=$("#d_"+k);
+    d.innerHTML=`<span><span class="spin"></span> Обработвам снимката…</span>`;
+    try{ph[k].blob=await shrink(f)}catch(err){toast("Снимката не се добави: "+err.message)}
+    drawDrop(k)};
   if(!assets){b.querySelector(".photos").insertAdjacentHTML("afterend",`<p class="count">Качването на снимки е достъпно само за редакторите на картотеката.</p>`)}
 
   const drawPicker=()=>{$("#picker").innerHTML=Object.entries(GROUPS).map(([g,n])=>`<h4>${n}</h4><div class="chips">${sortCats(categories.filter(c=>catGroup(c)===g)).map(c=>`<button type="button" class="chip g-${g}${sel.has(c.id)?" on":""}" data-c="${c.id}">${esc(c.name)}</button>`).join("")||`<span class="count">Няма категории – добавете от „Настройки“</span>`}</div>`).join("")};
